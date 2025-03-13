@@ -7,12 +7,15 @@ let package = Package(
         .iOS(.v15)
     ],
     products: [
-        .executable(name: "RhythmTrainer", targets: ["RhythmTrainer"])
+        .library(
+            name: "RhythmTrainer",
+            targets: ["RhythmTrainer"]
+        )
     ],
     targets: [
-        .executableTarget(
+        .target(
             name: "RhythmTrainer",
-            path: "Sources"
+            path: "Sources/RhythmTrainer"
         )
     ]
 )
