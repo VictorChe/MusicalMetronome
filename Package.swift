@@ -1,6 +1,4 @@
-// swift-tools-version: 5.6
-// The swift-tools-version declares the minimum version of Swift required to build this package.
-
+// swift-tools-version:5.6.2
 import PackageDescription
 
 let package = Package(
@@ -14,12 +12,14 @@ let package = Package(
             targets: ["RhythmTrainer"]
         )
     ],
-    dependencies: [],
     targets: [
         .target(
             name: "RhythmTrainer",
             dependencies: [],
-            path: "Sources/RhythmTrainer"
+            path: "Sources/RhythmTrainer",
+            resources: [
+                .process("Resources")
+            ]
         )
     ]
 )

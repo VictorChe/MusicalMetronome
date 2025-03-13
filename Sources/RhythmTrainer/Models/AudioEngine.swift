@@ -14,7 +14,6 @@ class AudioEngine: NSObject, ObservableObject {
     private var previousAudioLevels: [Double] = []
     private let beatDetectionThreshold: Double = 0.15
 
-    // FFT analysis
     private let fftSetup: FFTSetup?
     private let log2n: Int = 12
     private let n: Int
@@ -49,15 +48,37 @@ class AudioEngine: NSObject, ObservableObject {
     }
 
     private func setupAudioEngine() {
-        audioEngine = AVAudioEngine()
-        inputNode = audioEngine?.inputNode
+        do {
+            audioEngine = AVAudioEngine()
+            guard let audioEngine = audioEngine else { return }
 
-        guard let inputNode = inputNode else { return }
+            // Настраиваем аудио сессию только для записи
+            try AVAudioSession.sharedInstance().setCategory(.record, mode: .measurement)
+            try AVAudioSession.sharedInstance().setActive(true)
 
-        let recordingFormat = inputNode.outputFormat(forBus: 0)
+            inputNode = audioEngine.inputNode
+            guard let inputNode = inputNode else { return }
 
-        inputNode.installTap(onBus: 0, bufferSize: UInt32(bufferSize), format: recordingFormat) { [weak self] (buffer, when) in
-            self?.processAudioBuffer(buffer)
+            let inputFormat = inputNode.outputFormat(forBus: 0)
+            let recordingFormat = AVAudioFormat(
+                standardFormatWithSampleRate: inputFormat.sampleRate,
+                channels: 1
+            )
+
+            guard let recordingFormat = recordingFormat else {
+                print("Ошибка: Не удалось создать формат записи")
+                return
+            }
+
+            inputNode.installTap(onBus: 0,
+                               bufferSize: UInt32(bufferSize),
+                               format: recordingFormat) { [weak self] (buffer, time) in
+                self?.processAudioBuffer(buffer)
+            }
+
+            audioEngine.prepare()
+        } catch {
+            print("Ошибка настройки аудио движка: \(error.localizedDescription)")
         }
     }
 
@@ -65,25 +86,18 @@ class AudioEngine: NSObject, ObservableObject {
         guard permissionGranted, !isMonitoring, let audioEngine = audioEngine else { return }
 
         do {
-            try AVAudioSession.sharedInstance().setCategory(.playAndRecord, options: .defaultToSpeaker)
-            try AVAudioSession.sharedInstance().setActive(true)
-
-            audioEngine.prepare()
             try audioEngine.start()
-
             isMonitoring = true
         } catch {
-            print("Ошибка при запуске аудио мониторинга: \(error.localizedDescription)")
+            print("Ошибка запуска аудио мониторинга: \(error.localizedDescription)")
         }
     }
 
     func stopMonitoring() {
         guard isMonitoring, let audioEngine = audioEngine else { return }
-
         inputNode?.removeTap(onBus: 0)
         audioEngine.stop()
         try? AVAudioSession.sharedInstance().setActive(false)
-
         isMonitoring = false
     }
 
@@ -93,25 +107,21 @@ class AudioEngine: NSObject, ObservableObject {
 
         var sum: Float = 0
         vDSP_maxmgv(channelData, 1, &sum, vDSP_Length(frameLength))
-
         performFFT(on: channelData, frameCount: frameLength)
 
         let currentLevel = Double(sum)
         DispatchQueue.main.async {
             self.audioLevel = currentLevel
-
             self.previousAudioLevels.append(currentLevel)
             if self.previousAudioLevels.count > 5 {
                 self.previousAudioLevels.removeFirst()
             }
-
             self.detectBeat(currentLevel: currentLevel)
         }
     }
 
     private func detectBeat(currentLevel: Double) {
         guard previousAudioLevels.count > 2 else { return }
-
         let previousAverage = previousAudioLevels.dropLast().reduce(0, +) / Double(previousAudioLevels.count - 1)
         let isVolumeSpike = currentLevel > previousAverage + beatDetectionThreshold
         let hasDrumFrequencies = hasDrumLikeFrequencies()
@@ -119,7 +129,6 @@ class AudioEngine: NSObject, ObservableObject {
         if isVolumeSpike && hasDrumFrequencies {
             isBeatDetected = true
             onAudioDetected?(currentLevel)
-
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 self.isBeatDetected = false
             }
@@ -128,23 +137,17 @@ class AudioEngine: NSObject, ObservableObject {
 
     private func performFFT(on buffer: UnsafeMutablePointer<Float>, frameCount: Int) {
         let bufferSize = min(frameCount, self.bufferSize)
-
         var realPart = [Float](repeating: 0, count: n)
         var imagPart = [Float](repeating: 0, count: n)
+        var window = [Float](repeating: 0, count: bufferSize)
 
-        // Copy audio data to real part of input buffer
         for i in 0..<bufferSize {
             realPart[i] = buffer[i]
         }
-
-        // Apply Hann window
-        var window = [Float](repeating: 0, count: bufferSize)
         vDSP_hann_window(&window, vDSP_Length(bufferSize), Int32(vDSP_HANN_NORM))
         vDSP_vmul(realPart, 1, window, 1, &realPart, 1, vDSP_Length(bufferSize))
 
-        // Perform FFT safely with withUnsafeMutableBufferPointer
         var magnitudes = [Float](repeating: 0, count: n/2)
-
         realPart.withUnsafeMutableBufferPointer { realPtr in
             imagPart.withUnsafeMutableBufferPointer { imagPtr in
                 var splitComplex = DSPSplitComplex(realp: realPtr.baseAddress!, imagp: imagPtr.baseAddress!)
@@ -186,7 +189,6 @@ class AudioEngine: NSObject, ObservableObject {
                 }
             }
         }
-
         return false
     }
 }
