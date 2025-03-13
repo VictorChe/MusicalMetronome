@@ -38,12 +38,11 @@ class AudioEngine: NSObject, ObservableObject {
     }
 
     func requestPermission() {
-        Task {
-            let granted = await AVAudioApplication.requestRecordPermission()
+        AVAudioSession.sharedInstance().requestRecordPermission { [weak self] granted in
             DispatchQueue.main.async {
-                self.permissionGranted = granted
+                self?.permissionGranted = granted
                 if granted {
-                    self.setupAudioEngine()
+                    self?.setupAudioEngine()
                 }
             }
         }
@@ -132,7 +131,6 @@ class AudioEngine: NSObject, ObservableObject {
 
         var realPart = [Float](repeating: 0, count: n)
         var imagPart = [Float](repeating: 0, count: n)
-        var realOutput = [Float](repeating: 0, count: n/2)
 
         // Copy audio data to real part of input buffer
         for i in 0..<bufferSize {
@@ -144,23 +142,18 @@ class AudioEngine: NSObject, ObservableObject {
         vDSP_hann_window(&window, vDSP_Length(bufferSize), Int32(vDSP_HANN_NORM))
         vDSP_vmul(realPart, 1, window, 1, &realPart, 1, vDSP_Length(bufferSize))
 
-        // Perform FFT
+        // Perform FFT safely with withUnsafeMutableBufferPointer
+        var magnitudes = [Float](repeating: 0, count: n/2)
+
         realPart.withUnsafeMutableBufferPointer { realPtr in
             imagPart.withUnsafeMutableBufferPointer { imagPtr in
-                var complex = DSPSplitComplex(realp: realPtr.baseAddress!, imagp: imagPtr.baseAddress!)
-                let setup = fftSetup!
-
-                // Forward FFT
-                vDSP_fft_zrip(setup, &complex, 1, vDSP_Length(log2n), FFTDirection(kFFTDirection_Forward))
-
-                // Calculate magnitude
-                var magnitudes = [Float](repeating: 0, count: n/2)
-                vDSP_zvmags(&complex, 1, &magnitudes, 1, vDSP_Length(n/2))
-
-                // Find dominant frequencies
-                dominantFrequencies = findDominantFrequencies(magnitudes, frameCount: frameCount)
+                var splitComplex = DSPSplitComplex(realp: realPtr.baseAddress!, imagp: imagPtr.baseAddress!)
+                vDSP_fft_zrip(fftSetup!, &splitComplex, 1, vDSP_Length(log2n), FFTDirection(kFFTDirection_Forward))
+                vDSP_zvmags(&splitComplex, 1, &magnitudes, 1, vDSP_Length(n/2))
             }
         }
+
+        dominantFrequencies = findDominantFrequencies(magnitudes, frameCount: frameCount)
     }
 
     private func findDominantFrequencies(_ magnitudes: [Float], frameCount: Int) -> [Double] {
