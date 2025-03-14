@@ -52,7 +52,7 @@ class AudioEngine: NSObject, ObservableObject {
         do {
             try AVAudioSession.sharedInstance().setCategory(.playAndRecord, mode: .default)
             try AVAudioSession.sharedInstance().setActive(true)
-            
+
             audioEngine = AVAudioEngine()
             inputNode = audioEngine?.inputNode
 
@@ -63,13 +63,13 @@ class AudioEngine: NSObject, ObservableObject {
                 standardFormatWithSampleRate: inputFormat.sampleRate,
                 channels: 1
             )
-            
+
             guard let recordingFormat = recordingFormat else { return }
 
             inputNode.installTap(onBus: 0, bufferSize: UInt32(bufferSize), format: recordingFormat) { [weak self] (buffer, when) in
                 self?.processAudioBuffer(buffer)
             }
-            
+
             audioEngine?.prepare()
         } catch {
             print("Error setting up audio engine: \(error.localizedDescription)")
@@ -78,39 +78,39 @@ class AudioEngine: NSObject, ObservableObject {
 
     func startMonitoring() {
         guard !isMonitoring else { return }
-        
+
         // Запрашиваем разрешение на доступ к микрофону
         AVAudioSession.sharedInstance().requestRecordPermission { [weak self] granted in
             guard let self = self, granted else {
                 print("Нет разрешения на доступ к микрофону")
                 return
             }
-            
+
             self.permissionGranted = true
             DispatchQueue.main.async {
                 self.setupAndStartAudioEngine()
             }
         }
     }
-    
+
     private func setupAndStartAudioEngine() {
         guard let audioEngine = audioEngine else {
             setupAudioEngine()
             startMonitoring()
             return
         }
-        
+
         do {
             // Конфигурируем аудио сессию с минимальными настройками
             try AVAudioSession.sharedInstance().setCategory(.record, mode: .default)
             try AVAudioSession.sharedInstance().setActive(true)
-            
+
             // Очищаем буфер предыдущих уровней
             previousAudioLevels.removeAll()
-            
+
             audioEngine.prepare()
             try audioEngine.start()
-            
+
             isMonitoring = true
             print("Аудио мониторинг успешно запущен")
         } catch {
@@ -153,24 +153,30 @@ class AudioEngine: NSObject, ObservableObject {
     private func detectBeat(currentLevel: Double) {
         guard previousAudioLevels.count > 2 else { return }
 
+        // Проверяем, не является ли сигнал эхом метронома
+        if isLikelyMetronomeEcho() {
+            print("Игнорирование вероятного эха метронома")
+            return
+        }
+
         // Снизим порог обнаружения до минимума
         let previousAverage = previousAudioLevels.dropLast().reduce(0, +) / Double(previousAudioLevels.count - 1)
-        
+
         // Почти полностью уберем порог, чтобы отлавливать даже незначительные изменения
         let adjustedThreshold = beatDetectionThreshold * 0.1
-        
+
         // Еще сильнее снизим порог минимальной громкости
         let isVolumeSpike = currentLevel > previousAverage + adjustedThreshold
         let isLoudEnough = currentLevel > 0.02 // Предельно низкий порог громкости
-        
+
         // Выводим подробную отладочную информацию
         print("Аудио уровень: \(currentLevel), средний: \(previousAverage), порог: \(adjustedThreshold)")
-        
+
         // Оптимизируем время обнаружения, чтобы минимизировать задержку
         if isVolumeSpike || isLoudEnough {
             print("ОБНАРУЖЕН БИТ: уровень=\(currentLevel), порог=\(previousAverage + adjustedThreshold)")
             isBeatDetected = true
-            
+
             // Немедленно уведомляем о событии
             DispatchQueue.main.async {
                 self.onAudioDetected?(currentLevel)
@@ -182,7 +188,7 @@ class AudioEngine: NSObject, ObservableObject {
             }
         }
     }
-    
+
     // Расширенный метод для анализа частот, подходящий для разных инструментов
     private func hasMusicalFrequencies() -> Bool {
         let musicalFrequencyRanges = [
@@ -271,6 +277,14 @@ class AudioEngine: NSObject, ObservableObject {
             }
         }
 
+        return false
+    }
+
+    // Add this function to check for likely metronome echoes.  This is a placeholder and needs more sophisticated logic.
+    private func isLikelyMetronomeEcho() -> Bool {
+        // Implement logic to detect if the current audio level is likely an echo of the metronome.
+        // This might involve checking for similar patterns in recent audio levels or frequency analysis.
+        // This is a placeholder, replace with actual logic.
         return false
     }
 }

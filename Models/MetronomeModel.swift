@@ -6,6 +6,9 @@ class MetronomeModel: ObservableObject {
     @Published var tempo: Double = 90
     @Published var duration: Double = 20
     @Published var mode: TrainingMode = .tap
+    
+    // Компенсация задержки (в миллисекундах)
+    @Published var latencyCompensation: Double = 0 // Стандартное значение
 
     // Состояние метронома
     @Published var isRunning = false
@@ -126,9 +129,15 @@ class MetronomeModel: ObservableObject {
         calculateSkippedBeats()
     }
 
+    // Ссылка на аудио-движок для уведомления о кликах
+    var audioEngine: AudioEngine?
+    
     private func playTick() {
         audioPlayer?.currentTime = 0
         audioPlayer?.play()
+        
+        // Уведомляем аудио-движок о клике метронома для фильтрации эха
+        audioEngine?.notifyMetronomeClick()
     }
 
     func handleTap() {
@@ -203,11 +212,15 @@ class MetronomeModel: ObservableObject {
             return 
         }
         
-        // Вычисляем задержку обработки аудио (примерно 50-100 мс)
-        let audioProcessingDelay = 0.075 // 75 мс - ориентировочная задержка захвата и обработки аудио
+        // Задержка обработки аудио плюс настраиваемая пользователем компенсация задержки
+        let baseDelay = 0.075 // 75 мс - базовая задержка обработки аудио
+        let userLatencyCompensation = latencyCompensation / 1000.0 // переводим из мс в секунды
+        let totalDelay = baseDelay + userLatencyCompensation
         
-        // Корректируем фактическое время с учетом задержки обработки аудио
-        let actualElapsed = Date().timeIntervalSince(startTime) - audioProcessingDelay
+        // Корректируем фактическое время с учетом общей задержки
+        let actualElapsed = Date().timeIntervalSince(startTime) - totalDelay
+        
+        print("Применяемая задержка: \(totalDelay) сек (базовая: \(baseDelay) + пользовательская: \(userLatencyCompensation))")
         
         // Рассчитываем, на каком мы сейчас бите и каково отклонение
         let exactBeatPosition = actualElapsed / beatInterval
