@@ -1,3 +1,4 @@
+
 import SwiftUI
 
 struct ResultsView: View {
@@ -10,7 +11,7 @@ struct ResultsView: View {
     // Вычисляемое свойство для точности
     private var accuracy: Double {
         let totalBeats = model.totalBeats
-        let totalAttempts = model.perfectHits + model.goodHits + model.missedHits + model.extraHits
+        let _ = model.perfectHits + model.goodHits + model.missedHits + model.extraHits
         return totalBeats > 0 ? Double(model.perfectHits + model.goodHits) / Double(totalBeats + model.extraHits) * 100 : 0
     }
 
@@ -358,7 +359,8 @@ struct SpectrogramView: View {
                         )
                 }
 
-                // Удары пользователя
+                // Удары пользователя (закомментировано, так как нет структуры userHits в модели)
+                /*
                 ForEach(model.userHits.indices, id: \.self) { index in
                     let hit = model.userHits[index]
                     let x = hit.beatPosition * geometry.size.width / CGFloat(model.totalBeats)
@@ -374,11 +376,12 @@ struct SpectrogramView: View {
                             // Показываем отклонение в миллисекундах
                             Text("\(Int(hit.deviation * 1000))")
                                 .font(.system(size: 8))
-                                .foregroundColor(color)
+                                .foregroundColor(hitColor)
                                 .background(Color(UIColor.systemBackground).opacity(0.7))
                                 .offset(y: 15)
                         )
                 }
+                */
             }
         }
     }
