@@ -40,7 +40,7 @@ class AudioEngine: NSObject, ObservableObject {
     func requestPermission() {
         #if os(iOS)
         if #available(iOS 17.0, *) {
-            AVAudioApplication.requestRecordPermissionWithCompletionHandler { [weak self] granted in
+            AVAudioApplication.requestRecordPermission { [weak self] granted in
                 DispatchQueue.main.async {
                     self?.permissionGranted = granted
                     if granted {
@@ -99,7 +99,7 @@ class AudioEngine: NSObject, ObservableObject {
         // Запрашиваем разрешение на доступ к микрофону
         #if os(iOS)
         if #available(iOS 17.0, *) {
-            AVAudioApplication.requestRecordPermissionWithCompletionHandler { [weak self] granted in
+            AVAudioApplication.requestRecordPermission { [weak self] granted in
                 guard let self = self, granted else {
                     print("Нет разрешения на доступ к микрофону")
                     return
