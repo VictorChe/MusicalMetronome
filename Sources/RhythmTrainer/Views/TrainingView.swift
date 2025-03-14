@@ -83,6 +83,8 @@ struct TrainingView: View {
                 .background(Color(UIColor.secondarySystemBackground))
                 .cornerRadius(10)
 
+                Spacer()
+
                 Circle()
                     .fill(Color.blue.opacity(0.7))
                     .frame(width: 200, height: 200)
@@ -124,7 +126,7 @@ struct TrainingView: View {
                     }
                     .padding(.vertical)
                 } else {
-                    AudioLevelView(level: audioEngine.audioLevel)
+                    AudioLevelView(level: audioEngine.audioLevel * 10)
                         .frame(height: 100)
                         .padding(.vertical)
                 }
@@ -181,6 +183,9 @@ struct TrainingView: View {
     func setupAudioEngine() {
         if model.mode == .microphone {
             audioEngine.startMonitoring()
+            audioEngine.onAudioDetected = { intensity in
+                handleUserAction()
+            }
         }
     }
 
@@ -189,11 +194,9 @@ struct TrainingView: View {
         let previousGoodHits = model.goodHits
         let previousMissedHits = model.missedHits
         
-        if model.mode == .tap {
-            model.handleTap()
-        } else {
-            model.handleAudioInput(intensity: audioEngine.audioLevel)
-        }
+        model.handleBeat()
+        
+        showFeedback = true
         
         if model.perfectHits > previousPerfectHits {
             feedback = "Идеально!"
@@ -206,7 +209,6 @@ struct TrainingView: View {
             feedbackColor = .orange
         }
         
-        showFeedback = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             showFeedback = false
         }
@@ -215,6 +217,6 @@ struct TrainingView: View {
     func formatTime(_ seconds: Double) -> String {
         let minutes = Int(seconds) / 60
         let secs = Int(seconds) % 60
-        String(format: "%d:%02d", minutes, secs)
+        return String(format: "%d:%02d", minutes, secs)
     }
 }
