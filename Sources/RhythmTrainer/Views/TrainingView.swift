@@ -106,8 +106,6 @@ struct TrainingView: View {
                 .background(Color(UIColor.secondarySystemBackground))
                 .cornerRadius(10)
 
-                Spacer()
-
                 Circle()
                     .fill(Color.blue.opacity(0.7))
                     .frame(width: 200, height: 200)
@@ -135,11 +133,9 @@ struct TrainingView: View {
                         .animation(.easeInOut(duration: 0.2), value: showFeedback)
                 }
 
-                Spacer()
-
                 if model.mode == .tap {
                     Button {
-                        handleUserAction(intensity: 1.0)
+                        handleUserAction()
                     } label: {
                         Text("Тап")
                             .font(.title)
@@ -151,7 +147,7 @@ struct TrainingView: View {
                     }
                     .padding(.vertical)
                 } else {
-                    AudioLevelView(level: audioEngine.audioLevel * 10)
+                    AudioLevelView(level: audioEngine.audioLevel)
                         .frame(height: 100)
                         .padding(.vertical)
                 }
@@ -196,20 +192,23 @@ struct TrainingView: View {
 
     private func setupAudioEngine() {
         if model.mode == .microphone {
-            audioEngine.onAudioDetected = { intensity in
-                handleUserAction(intensity: intensity)
+            audioEngine.startMonitoring { intensity in
+                handleUserAction()
             }
-            audioEngine.startMonitoring()
         }
     }
 
-    private func handleUserAction(intensity: Double) {
+    private func handleUserAction() {
+        if model.mode == .tap {
+            model.handleTap()
+        } else {
+            model.handleAudioInput(intensity: audioEngine.audioLevel)
+        }
+
         let previousPerfectHits = model.perfectHits
         let previousGoodHits = model.goodHits
         let previousMissedHits = model.missedHits
-        
-        model.handleBeat(intensity: intensity)
-        
+
         if model.perfectHits > previousPerfectHits {
             feedback = "Идеально!"
             feedbackColor = .green
@@ -220,7 +219,7 @@ struct TrainingView: View {
             feedback = "Мимо"
             feedbackColor = .orange
         }
-        
+
         showFeedback = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             showFeedback = false
