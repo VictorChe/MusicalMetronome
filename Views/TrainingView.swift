@@ -164,11 +164,9 @@ struct TrainingView: View {
                 .fontWeight(.bold)
                 .onAppear {
                     // Автоматически показываем результаты при завершении тренировки
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        showResults = true
-                    }
+                    showResults = true
                 }
-            
+
             Button {
                 showResults = true
             } label: {
@@ -210,7 +208,7 @@ struct TrainingView: View {
         let previousGoodHits = model.goodHits
         let previousMissedHits = model.missedHits
         let previousExtraHits = model.extraHits
-        
+
         if model.mode == .tap {
             model.handleTap()
         } else if model.mode == .microphone {
@@ -232,9 +230,9 @@ struct TrainingView: View {
             feedback = "Неточно"
             feedbackColor = .orange
         }
-        
+
         showFeedback = true
-        
+
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             showFeedback = false
         }

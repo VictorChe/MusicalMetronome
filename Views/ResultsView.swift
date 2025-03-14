@@ -187,26 +187,29 @@ struct ResultsView: View {
             }
             
             if isSpectrumFullscreen {
-                Color.black.opacity(0.9)
+                Color.black
                     .edgesIgnoringSafeArea(.all)
                     .overlay(
-                        ZoomableSpectrogramView(model: model)
-                            .edgesIgnoringSafeArea(.all)
+                        VStack {
+                            HStack {
+                                Spacer()
+                                Button {
+                                    isSpectrumFullscreen = false
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .font(.title)
+                                        .foregroundColor(.white)
+                                        .padding()
+                                }
+                            }
+                            .padding(.top)
+                            
+                            ZoomableSpectrogramView(model: model)
+                                .edgesIgnoringSafeArea(.all)
+                                .background(Color.black)
+                        }
                     )
                     .onTapGesture(count: 2) { }  // Блокирует передачу двойного нажатия
-                    .overlay(
-                        Button {
-                            isSpectrumFullscreen = false
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.title)
-                                .foregroundColor(.white)
-                                .padding()
-                        }
-                        .padding(.top)
-                        .padding(.trailing)
-                        , alignment: .topTrailing
-                    )
                     .transition(.opacity)
                     .zIndex(10)
             }
@@ -214,16 +217,29 @@ struct ResultsView: View {
     }
     
     private func calculateBeatAccuracies() -> [Double] {
-        // Здесь бы был настоящий расчет точности по тактам
-        // Для демонстрации будем возвращать массив с случайными значениями
         let beatsPerMeasure = 4
         let numberOfMeasures = Int(ceil(Double(model.totalBeats) / Double(beatsPerMeasure)))
         
         var results: [Double] = []
-        for _ in 0..<numberOfMeasures {
-            // Случайные значения для демонстрации от 50 до 100%
-            let randomAccuracy = Double.random(in: 50...100)
-            results.append(randomAccuracy)
+        
+        // Подсчитываем количество ударов в каждом такте
+        for measure in 0..<numberOfMeasures {
+            let startBeat = measure * beatsPerMeasure
+            let endBeat = min(startBeat + beatsPerMeasure, model.totalBeats)
+            
+            // Проверяем, были ли удары в этом такте
+            // Для этого используем идеальные, хорошие и неточные попадания
+            let measureHits = min(model.perfectHits + model.goodHits + model.missedHits, endBeat - startBeat)
+            let totalBeatsInMeasure = endBeat - startBeat
+            
+            // Если в такте не было ударов, ставим 0
+            if measureHits == 0 {
+                results.append(0.0)
+            } else {
+                // Считаем точность в процентах
+                let accuracy = Double(measureHits) / Double(totalBeatsInMeasure) * 100
+                results.append(accuracy)
+            }
         }
         
         return results
@@ -250,18 +266,45 @@ struct SpectrogramView: View {
     @ObservedObject var model: MetronomeModel
     
     var body: some View {
-        ZStack {
-            // Фон с сеткой
-            GridBackground()
+        VStack(spacing: 5) {
+            ZStack {
+                // Фон с сеткой
+                GridBackground()
+                
+                // Метки для тактов и битов
+                TimelineMarks(totalBeats: model.totalBeats, tempo: model.tempo)
+                
+                // Отображение кликов метронома
+                MetronomeClicks(totalBeats: model.totalBeats)
+                
+                // Отображение попаданий пользователя
+                UserHits(model: model)
+            }
             
-            // Метки для тактов и битов
-            TimelineMarks(totalBeats: model.totalBeats, tempo: model.tempo)
-            
-            // Отображение кликов метронома
-            MetronomeClicks(totalBeats: model.totalBeats)
-            
-            // Отображение попаданий пользователя
-            UserHits(model: model)
+            // Легенда
+            HStack(spacing: 15) {
+                LegendItem(color: .black, label: "Клик метронома")
+                LegendItem(color: .green, label: "Идеальное попадание")
+                LegendItem(color: .blue, label: "Хорошее попадание")
+                LegendItem(color: .orange, label: "Неточное попадание")
+            }
+            .font(.system(size: 10))
+            .padding(.vertical, 5)
+        }
+    }
+}
+
+struct LegendItem: View {
+    let color: Color
+    let label: String
+    
+    var body: some View {
+        HStack(spacing: 4) {
+            Circle()
+                .fill(color)
+                .frame(width: 8, height: 8)
+            Text(label)
+                .font(.caption)
         }
     }
 }
@@ -399,27 +442,58 @@ struct UserHits: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                // Здесь в реальном приложении нужно использовать фактические данные
-                // о времени попаданий пользователя, сейчас используем случайные данные
-                ForEach(0..<30, id: \.self) { index in
-                    let beatPosition = Double.random(in: 0...Double(model.totalBeats - 1))
-                    let deviation = Double.random(in: -0.2...0.2)
-                    let xPosition = (CGFloat(beatPosition) / CGFloat(model.totalBeats - 1)) * geometry.size.width
-                    let yPosition = geometry.size.height / 2 + CGFloat(deviation * 50)
-                    
-                    let color: Color = {
-                        if abs(deviation) < 0.05 {
-                            return .green  // Идеальное попадание
-                        } else if abs(deviation) < 0.15 {
-                            return .blue   // Хорошее попадание
-                        } else {
-                            return .orange // Неточное попадание
-                        }
-                    }()
+                // Используем реальные данные из модели для отображения ударов
+                // Это примерная визуализация, в реальном приложении нужно 
+                // получать временные метки каждого удара
+                
+                // Идеальные попадания
+                ForEach(0..<model.perfectHits, id: \.self) { index in
+                    let beatIndex = min(model.totalBeats - 1, index * 4)
+                    let xPosition = (CGFloat(beatIndex) / CGFloat(max(1, model.totalBeats - 1))) * geometry.size.width
+                    let yPosition = geometry.size.height / 2 // Идеальное попадание - прямо по центру
                     
                     Circle()
-                        .fill(color)
-                        .frame(width: 6, height: 6)
+                        .fill(Color.green)
+                        .frame(width: 8, height: 8)
+                        .position(x: xPosition, y: yPosition)
+                }
+                
+                // Хорошие попадания
+                ForEach(0..<model.goodHits, id: \.self) { index in
+                    let beatIndex = min(model.totalBeats - 1, index * 4 + 1)
+                    let xPosition = (CGFloat(beatIndex) / CGFloat(max(1, model.totalBeats - 1))) * geometry.size.width
+                    let deviation = 0.1 // Небольшое отклонение от центра
+                    let yPosition = geometry.size.height / 2 + CGFloat(deviation * 50)
+                    
+                    Circle()
+                        .fill(Color.blue)
+                        .frame(width: 8, height: 8)
+                        .position(x: xPosition, y: yPosition)
+                }
+                
+                // Неточные попадания
+                ForEach(0..<model.missedHits, id: \.self) { index in
+                    let beatIndex = min(model.totalBeats - 1, index * 4 + 2)
+                    let xPosition = (CGFloat(beatIndex) / CGFloat(max(1, model.totalBeats - 1))) * geometry.size.width
+                    let deviation = 0.25 // Большее отклонение от центра
+                    let yPosition = geometry.size.height / 2 + CGFloat(deviation * 50)
+                    
+                    Circle()
+                        .fill(Color.orange)
+                        .frame(width: 8, height: 8)
+                        .position(x: xPosition, y: yPosition)
+                }
+                
+                // Мимо
+                ForEach(0..<model.extraHits, id: \.self) { index in
+                    let beatIndex = min(model.totalBeats - 1, index * 4 + 3)
+                    let xPosition = (CGFloat(beatIndex) / CGFloat(max(1, model.totalBeats - 1))) * geometry.size.width
+                    let deviation = 0.4 // Очень большое отклонение
+                    let yPosition = geometry.size.height / 2 + CGFloat(deviation * 50)
+                    
+                    Circle()
+                        .fill(Color.purple)
+                        .frame(width: 8, height: 8)
                         .position(x: xPosition, y: yPosition)
                 }
             }
