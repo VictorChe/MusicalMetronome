@@ -166,32 +166,43 @@ class MetronomeModel: ObservableObject {
         // Проверяем минимальный интервал между попаданиями
         if currentTime - lastHitTime < minimumTimeBetweenHits {
             extraHits += 1
-            print("Лишняя нота")
+            print("Лишняя нота (слишком быстрое нажатие)")
+            return
+        }
+
+        // Находим ближайший бит к текущему времени
+        let nearestBeatNumber = Int(round(elapsedTime / beatInterval))
+        let distanceToBeat = abs(elapsedTime - Double(nearestBeatNumber) * beatInterval)
+
+        // Проверяем, не было ли уже попадания на этот бит
+        if nearestBeatNumber == lastHitBeat {
+            extraHits += 1
+            print("Лишняя нота (повторное попадание)")
             return
         }
 
         lastHitTime = currentTime
+        lastHitBeat = nearestBeatNumber
 
-        // Увеличиваем счетчик попаданий для текущего бита
-        beatHits[currentBeatNumber] = (beatHits[currentBeatNumber] ?? 0) + 1
+        // Нормализуем отклонение относительно темпа
+        let normalizedDeviation = distanceToBeat / beatInterval
 
-        // Если это более одного попадания на бит, считаем как лишнюю ноту
-        if beatHits[currentBeatNumber]! > 1 {
-            extraHits += 1
-            print("Лишняя нота на бите \(currentBeatNumber)")
-            return
-        }
-
-        if timeDifference < perfectHitThreshold {
+        // Определяем тип попадания с учетом темпа
+        if normalizedDeviation < perfectHitThreshold {
             perfectHits += 1
-            print("Идеальное попадание на бит \(currentBeatNumber)")
-        } else if timeDifference < goodHitThreshold {
+            print("Идеальное попадание (отклонение: \(Int(normalizedDeviation * 100))%)")
+        } else if normalizedDeviation < goodHitThreshold {
             goodHits += 1
-            print("Хорошее попадание на бит \(currentBeatNumber)")
-        } else {
+            print("Хорошее попадание (отклонение: \(Int(normalizedDeviation * 100))%)")
+        } else if normalizedDeviation < 0.25 { // Максимальное отклонение 25% от интервала
             missedHits += 1
-            print("Неточное попадание на бит \(currentBeatNumber)")
+            print("Неточное попадание (отклонение: \(Int(normalizedDeviation * 100))%)")
+        } else {
+            extraHits += 1
+            print("Нота мимо (отклонение: \(Int(normalizedDeviation * 100))%)")
         }
+
+        print("Статистика - Идеальные: \(perfectHits), Хорошие: \(goodHits), Неточные: \(missedHits), Мимо: \(extraHits)")
     }
 
     // Функция вызывается, когда обнаружен звук от микрофона
