@@ -14,26 +14,12 @@ struct ContentView: View {
 
                 // Информация о текущих настройках
                 VStack(spacing: 10) {
-                    HStack {
-                        Image(systemName: "metronome")
-                            .font(.title)
-                        Text("\(Int(metronomeModel.tempo)) BPM")
-                            .font(.title2)
-                    }
-
-                    HStack {
-                        Image(systemName: "clock")
-                            .font(.title)
-                        Text("\(Int(metronomeModel.duration)) секунд")
-                            .font(.title2)
-                    }
-
-                    HStack {
-                        Image(systemName: metronomeModel.mode == .tap ? "hand.tap" : "mic")
-                            .font(.title)
-                        Text(metronomeModel.mode.rawValue)
-                            .font(.title2)
-                    }
+                    settingsRow(icon: "metronome", text: "\(Int(metronomeModel.tempo)) BPM")
+                    settingsRow(icon: "clock", text: "\(Int(metronomeModel.duration)) секунд")
+                    settingsRow(
+                        icon: metronomeModel.mode == .tap ? "hand.tap" : "mic",
+                        text: metronomeModel.mode.rawValue
+                    )
                 }
                 .padding()
                 .background(Color(UIColor.systemGray6))
@@ -89,6 +75,15 @@ struct ContentView: View {
                         metronomeModel.startMetronome()
                     }
             }
+        }
+    }
+
+    private func settingsRow(icon: String, text: String) -> some View {
+        HStack {
+            Image(systemName: icon)
+                .font(.title)
+            Text(text)
+                .font(.title2)
         }
     }
 }

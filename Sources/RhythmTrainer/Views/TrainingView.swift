@@ -8,18 +8,30 @@ struct TrainingView: View {
     @State private var feedback = ""
     @State private var feedbackColor = Color.gray
     @State private var showFeedback = false
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        VStack(spacing: 20) {
-            if model.isCountdown {
-                countdownView
-            } else if model.isRunning {
-                trainingView
-            } else {
-                finishedView
+        GeometryReader { geometry in
+            ZStack {
+                Color(UIColor.systemBackground)
+                    .ignoresSafeArea()
+
+                ScrollView {
+                    VStack(spacing: 20) {
+                        Group {
+                            if model.isCountdown {
+                                countdownView
+                            } else if model.isRunning {
+                                trainingView
+                            } else {
+                                finishedView
+                            }
+                        }
+                    }
+                    .padding(20)
+                }
             }
         }
-        .padding()
         .onAppear {
             setupAudioEngine()
         }
@@ -52,15 +64,17 @@ struct TrainingView: View {
             Text(model.mode == .tap ? "Нажимайте на кнопку в ритм" : "Играйте в ритм метронома")
                 .font(.headline)
                 .multilineTextAlignment(.center)
-                .padding()
+                .padding(.horizontal)
         }
     }
 
     private var trainingView: some View {
         VStack(spacing: 20) {
+            // Прогресс
             ProgressView(value: model.progress)
                 .progressViewStyle(LinearProgressViewStyle())
 
+            // Время
             HStack {
                 Text("Прошло: \(formatTime(model.elapsedTime))")
                 Spacer()
@@ -69,26 +83,30 @@ struct TrainingView: View {
             .font(.caption)
             .foregroundColor(.secondary)
 
+            // Статистика
             VStack(spacing: 8) {
                 HStack {
-                    Label("Идеальные", systemImage: "star.fill")
+                    Image(systemName: "star.fill")
                         .foregroundColor(.green)
+                    Text("Идеальные")
                     Spacer()
                     Text("\(model.perfectHits)")
                         .font(.headline)
                 }
 
                 HStack {
-                    Label("Хорошие", systemImage: "star")
+                    Image(systemName: "star")
                         .foregroundColor(.blue)
+                    Text("Хорошие")
                     Spacer()
                     Text("\(model.goodHits)")
                         .font(.headline)
                 }
 
                 HStack {
-                    Label("Неточные", systemImage: "star.slash")
+                    Image(systemName: "star.slash")
                         .foregroundColor(.orange)
+                    Text("Неточные")
                     Spacer()
                     Text("\(model.missedHits)")
                         .font(.headline)
@@ -100,36 +118,38 @@ struct TrainingView: View {
 
             Spacer()
 
-            // Визуальный метроном
-            ZStack {
-                Circle()
-                    .fill(Color.blue.opacity(0.7))
-                    .frame(width: 200, height: 200)
-                    .overlay(
-                        Circle()
-                            .stroke(Color.blue, lineWidth: 4)
-                    )
+            // Индикатор бита
+            Circle()
+                .fill(Color.blue.opacity(0.7))
+                .frame(width: 200, height: 200)
+                .overlay(
+                    Circle()
+                        .stroke(Color.blue, lineWidth: 4)
+                )
+                .overlay(
+                    VStack {
+                        Text("\(model.currentBeat + 1)")
+                            .font(.system(size: 48, weight: .bold))
+                        Text("из \(model.totalBeats)")
+                            .font(.headline)
+                    }
+                    .foregroundColor(.white)
+                )
+                .scaleEffect(model.currentBeat % 4 == 0 ? 1.1 : 1.0)
+                .animation(.easeInOut(duration: 0.1), value: model.currentBeat)
 
-                VStack {
-                    Text("\(model.currentBeat + 1)")
-                        .font(.system(size: 48, weight: .bold))
-                    Text("из \(model.totalBeats)")
-                        .font(.headline)
-                }
-                .foregroundColor(.white)
+            // Обратная связь
+            if !feedback.isEmpty {
+                Text(feedback)
+                    .font(.title2)
+                    .foregroundColor(feedbackColor)
+                    .opacity(showFeedback ? 1 : 0)
+                    .animation(.easeInOut(duration: 0.2), value: showFeedback)
             }
-            .scaleEffect(model.currentBeat % 4 == 0 ? 1.1 : 1.0)
-            .animation(.easeInOut(duration: 0.1), value: model.currentBeat)
-
-            Text(feedback)
-                .font(.title2)
-                .fontWeight(.bold)
-                .foregroundColor(feedbackColor)
-                .opacity(showFeedback ? 1 : 0)
-                .animation(.easeInOut(duration: 0.2), value: showFeedback)
 
             Spacer()
 
+            // Элементы управления
             if model.mode == .tap {
                 Button {
                     handleUserAction(intensity: 1.0)
@@ -142,23 +162,26 @@ struct TrainingView: View {
                         .clipShape(Circle())
                         .shadow(radius: 5)
                 }
-                .padding(.vertical, 20)
+                .padding(.vertical)
             } else {
                 AudioLevelView(level: audioEngine.audioLevel * 10)
                     .frame(height: 100)
-                    .padding(.vertical, 20)
+                    .padding(.vertical)
             }
 
-            Button {
+            // Кнопка завершения
+            Button(role: .destructive) {
                 model.stopMetronome()
                 if model.mode == .microphone {
                     audioEngine.stopMonitoring()
                 }
                 showResults = true
             } label: {
-                Label("Завершить тренировку", systemImage: "xmark.circle.fill")
-                    .foregroundColor(.red)
-                    .padding()
+                HStack {
+                    Image(systemName: "xmark.circle.fill")
+                    Text("Завершить тренировку")
+                }
+                .padding(10)
             }
         }
     }
@@ -185,8 +208,8 @@ struct TrainingView: View {
 
     private func setupAudioEngine() {
         if model.mode == .microphone {
-            audioEngine.onAudioDetected = { intensity in
-                handleUserAction(intensity: intensity)
+            audioEngine.onAudioDetected = { [weak self] intensity in
+                self?.handleUserAction(intensity: intensity)
             }
             audioEngine.startMonitoring()
         }
