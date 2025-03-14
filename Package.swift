@@ -1,4 +1,4 @@
-// swift-tools-version:5.6.2
+// swift-tools-version:5.9
 import PackageDescription
 
 let package = Package(
@@ -7,13 +7,13 @@ let package = Package(
         .iOS(.v15)
     ],
     products: [
-        .library(
+        .executable(
             name: "RhythmTrainer",
             targets: ["RhythmTrainer"]
         )
     ],
     targets: [
-        .target(
+        .executableTarget(
             name: "RhythmTrainer",
             dependencies: [],
             path: "Sources/RhythmTrainer",

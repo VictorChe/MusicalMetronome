@@ -58,21 +58,17 @@ struct TrainingView: View {
 
     private var trainingView: some View {
         VStack(spacing: 20) {
-            // Прогресс и время
-            VStack(spacing: 4) {
-                ProgressView(value: model.progress)
-                    .progressViewStyle(LinearProgressViewStyle())
+            ProgressView(value: model.progress)
+                .progressViewStyle(LinearProgressViewStyle())
 
-                HStack {
-                    Text("Прошло: \(formatTime(model.elapsedTime))")
-                    Spacer()
-                    Text("Осталось: \(formatTime(model.duration - model.elapsedTime))")
-                }
-                .font(.caption)
-                .foregroundColor(.secondary)
+            HStack {
+                Text("Прошло: \(formatTime(model.elapsedTime))")
+                Spacer()
+                Text("Осталось: \(formatTime(model.duration - model.elapsedTime))")
             }
+            .font(.caption)
+            .foregroundColor(.secondary)
 
-            // Счетчики попаданий
             VStack(spacing: 8) {
                 HStack {
                     Label("Идеальные", systemImage: "star.fill")
@@ -125,45 +121,41 @@ struct TrainingView: View {
             .scaleEffect(model.currentBeat % 4 == 0 ? 1.1 : 1.0)
             .animation(.easeInOut(duration: 0.1), value: model.currentBeat)
 
-            // Обратная связь
             Text(feedback)
                 .font(.title2)
                 .fontWeight(.bold)
                 .foregroundColor(feedbackColor)
                 .opacity(showFeedback ? 1 : 0)
                 .animation(.easeInOut(duration: 0.2), value: showFeedback)
-                .padding(.vertical)
 
             Spacer()
 
-            // Элементы управления
-            Group {
-                if model.mode == .tap {
-                    Button(action: {
-                        handleUserAction(intensity: 1.0)
-                    }) {
-                        Text("Тап")
-                            .font(.title)
-                            .foregroundColor(.white)
-                            .frame(width: 150, height: 150)
-                            .background(Color.blue)
-                            .clipShape(Circle())
-                            .shadow(radius: 5)
-                    }
-                } else {
-                    AudioLevelView(level: audioEngine.audioLevel * 10)
-                        .frame(height: 100)
+            if model.mode == .tap {
+                Button {
+                    handleUserAction(intensity: 1.0)
+                } label: {
+                    Text("Тап")
+                        .font(.title)
+                        .foregroundColor(.white)
+                        .frame(width: 150, height: 150)
+                        .background(Color.blue)
+                        .clipShape(Circle())
+                        .shadow(radius: 5)
                 }
+                .padding(.vertical, 20)
+            } else {
+                AudioLevelView(level: audioEngine.audioLevel * 10)
+                    .frame(height: 100)
+                    .padding(.vertical, 20)
             }
-            .padding(.vertical, 30)
 
-            Button(action: {
+            Button {
                 model.stopMetronome()
                 if model.mode == .microphone {
                     audioEngine.stopMonitoring()
                 }
                 showResults = true
-            }) {
+            } label: {
                 Label("Завершить тренировку", systemImage: "xmark.circle.fill")
                     .foregroundColor(.red)
                     .padding()
@@ -177,9 +169,9 @@ struct TrainingView: View {
                 .font(.title)
                 .fontWeight(.bold)
 
-            Button(action: {
+            Button {
                 showResults = true
-            }) {
+            } label: {
                 Text("Показать результаты")
                     .font(.headline)
                     .foregroundColor(.white)
@@ -211,7 +203,6 @@ struct TrainingView: View {
             model.handleTap()
         }
 
-        // Определяем тип попадания по изменению счетчиков
         if model.perfectHits > previousPerfectHits {
             showFeedback(message: "Идеально! ⭐️", color: .green)
         } else if model.goodHits > previousGoodHits {

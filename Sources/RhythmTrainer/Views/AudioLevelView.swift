@@ -2,7 +2,7 @@ import SwiftUI
 
 struct AudioLevelView: View {
     var level: Double
-
+    
     var body: some View {
         VStack(spacing: 8) {
             HStack(spacing: 3) {
@@ -13,26 +13,23 @@ struct AudioLevelView: View {
                         .cornerRadius(5)
                 }
             }
-
+            
             Text("Микрофон активен")
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
     }
-
+    
     private func barHeight(for index: Int) -> CGFloat {
         let baseHeight: Double = 20.0
         let maxHeight: Double = 100.0
-
         let threshold = Double(index) * 0.2
         let scaledLevel = min(max(0, level - threshold) * 2, 1)
-
         return baseHeight + (maxHeight - baseHeight) * scaledLevel
     }
-
+    
     private func barColor(for index: Int) -> Color {
         let threshold = Double(index) * 0.2
-
         if level > threshold + 0.8 {
             return .red
         } else if level > threshold + 0.5 {

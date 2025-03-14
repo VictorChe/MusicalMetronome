@@ -41,7 +41,7 @@ struct ContentView: View {
 
                 Spacer()
 
-                // Кнопка настроек
+                // Навигационные кнопки
                 NavigationLink {
                     SettingsView(model: metronomeModel)
                 } label: {
@@ -58,7 +58,6 @@ struct ContentView: View {
                 }
                 .padding(.horizontal)
 
-                // Кнопка начала тренировки
                 Button {
                     isTraining = true
                 } label: {
@@ -74,12 +73,6 @@ struct ContentView: View {
                     .cornerRadius(10)
                 }
                 .padding(.horizontal)
-                .navigationDestination(isPresented: $isTraining) {
-                    TrainingView(model: metronomeModel)
-                        .onAppear {
-                            metronomeModel.startMetronome()
-                        }
-                }
 
                 Spacer()
 
@@ -90,6 +83,12 @@ struct ContentView: View {
             }
             .padding()
             .background(Color(UIColor.systemBackground))
+            .navigationDestination(isPresented: $isTraining) {
+                TrainingView(model: metronomeModel)
+                    .onAppear {
+                        metronomeModel.startMetronome()
+                    }
+            }
         }
     }
 }

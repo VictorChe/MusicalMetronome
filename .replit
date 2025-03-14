@@ -1,4 +1,4 @@
-modules = ["swift"]
+modules = ["swift", "swift-5.9"]
 
 [nix]
 channel = "stable-24_05"
@@ -28,7 +28,6 @@ task = "packager.installForAll"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "swift run"
-waitForPort = 5000
 
 [deployment]
 run = ["sh", "-c", "swift run"]
