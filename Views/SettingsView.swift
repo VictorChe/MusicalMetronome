@@ -39,17 +39,32 @@ struct SettingsView: View {
                 }
                 .pickerStyle(SegmentedPickerStyle())
 
-                // Компенсация задержки (только для режима микрофона)
                 if model.mode == .microphone {
-                    VStack(alignment: .leading) {
-                        Text("Компенсация задержки: \(Int(model.latencyCompensation)) мс")
-                        Slider(value: $model.latencyCompensation, in: -200...200, step: 5)
-                    }
-                    .padding(.vertical)
-
-                    Text("Используйте эту настройку, если вы заметили систематическое опережение или отставание в режиме микрофона. Положительные значения - если ваш звук обнаруживается с опозданием, отрицательные - если слишком рано.")
+                    Text("Требуется доступ к микрофону")
                         .font(.caption)
                         .foregroundColor(.secondary)
+
+                    VStack(alignment: .leading) {
+                        Text("Компенсация задержки (мс)")
+                            .font(.caption)
+
+                        Slider(value: $model.latencyCompensation, in: -200...200, step: 5) {
+                            Text("Компенсация задержки")
+                        } minimumValueLabel: {
+                            Text("-200")
+                        } maximumValueLabel: {
+                            Text("200")
+                        }
+
+                        Text("\(Int(model.latencyCompensation)) мс")
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .font(.callout)
+
+                        Text("Отрицательные значения для наушников, положительные для динамиков")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.top, 4)
                 }
             }
         }
