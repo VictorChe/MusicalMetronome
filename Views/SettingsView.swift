@@ -43,29 +43,52 @@ struct SettingsView: View {
                     Text("Требуется доступ к микрофону")
                         .font(.caption)
                         .foregroundColor(.secondary)
-
-                    VStack(alignment: .leading) {
-                        Text("Компенсация задержки (мс)")
-                            .font(.caption)
-
-                        Slider(value: $model.latencyCompensation, in: -200...200, step: 5) {
-                            Text("Компенсация задержки")
-                        } minimumValueLabel: {
-                            Text("-200")
-                        } maximumValueLabel: {
-                            Text("200")
-                        }
-
-                        Text("\(Int(model.latencyCompensation)) мс")
-                            .frame(maxWidth: .infinity, alignment: .center)
-                            .font(.callout)
-
-                        Text("Отрицательные значения для наушников, положительные для динамиков")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    .padding(.top, 4)
                 }
+            }
+
+            Section(header: Text("Компенсация задержки")) {
+                VStack(alignment: .leading) {
+                    Text("Компенсация задержки (мс)")
+                        .font(.headline)
+
+                    Slider(value: $model.latencyCompensation, in: -200...200, step: 5) {
+                        Text("Компенсация задержки")
+                    } minimumValueLabel: {
+                        Text("-200")
+                    } maximumValueLabel: {
+                        Text("200")
+                    }
+
+                    Text("\(Int(model.latencyCompensation)) мс")
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .font(.callout)
+
+                    Text("Рекомендуемые настройки:")
+                        .font(.subheadline)
+                        .padding(.top, 8)
+
+                    HStack(alignment: .top) {
+                        VStack(alignment: .leading) {
+                            Text("Наушники:")
+                                .fontWeight(.medium)
+                            Text("AirPods: -80 до -120 мс")
+                            Text("Проводные: -30 до -50 мс")
+                        }
+                        Spacer()
+                        VStack(alignment: .leading) {
+                            Text("Динамик телефона:")
+                                .fontWeight(.medium)
+                            Text("+30 до +50 мс")
+                        }
+                    }
+                    .padding(.top, 2)
+
+                    Text("Отрицательные значения компенсируют задержку в наушниках, положительные - для динамиков")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(.top, 4)
+                }
+                .padding(.vertical, 4)
             }
         }
         .navigationTitle("Настройки")

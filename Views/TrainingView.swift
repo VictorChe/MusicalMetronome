@@ -196,6 +196,11 @@ struct TrainingView: View {
     }
 
     func handleUserAction() {
+        let previousPerfectHits = model.perfectHits
+        let previousGoodHits = model.goodHits
+        let previousMissedHits = model.missedHits
+        let previousExtraHits = model.extraHits
+        
         if model.mode == .tap {
             model.handleTap()
         } else if model.mode == .microphone {
@@ -203,8 +208,26 @@ struct TrainingView: View {
             model.handleAudioInput(intensity: audioEngine.audioLevel)
         }
 
-        // Обратная связь для пользователя
-        showFeedbackMessage()
+        // Обратная связь для пользователя на основе последнего нажатия
+        if model.extraHits > previousExtraHits {
+            feedback = "Мимо"
+            feedbackColor = .purple
+        } else if model.perfectHits > previousPerfectHits {
+            feedback = "Идеально!"
+            feedbackColor = .green
+        } else if model.goodHits > previousGoodHits {
+            feedback = "Хорошо!"
+            feedbackColor = .blue
+        } else if model.missedHits > previousMissedHits {
+            feedback = "Неточно"
+            feedbackColor = .orange
+        }
+        
+        showFeedback = true
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            showFeedback = false
+        }
     }
 
     func showFeedbackMessage() {

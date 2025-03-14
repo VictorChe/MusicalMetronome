@@ -235,19 +235,27 @@ class MetronomeModel: ObservableObject {
         // Значительно увеличиваем допустимое отклонение для режима микрофона
         let microAdjustment = 3.0 // Увеличиваем пороги в 3 раза
         
-        // Проверяем минимальный интервал между нажатиями 
-        // Ещё больше уменьшаем интервал для режима микрофона
-        if currentTime - lastHitTime < (minimumTimeBetweenHits * 0.5) {
-            print("Слишком частое обнаружение звука: пропущено \(currentTime - lastHitTime)s")
+        // Проверяем минимальный интервал между нажатиями
+        // Добавляем логику для отлавливания множественных нажатий
+        let isMultipleHitWithinSameBeat = false
+        
+        // Если прошло совсем мало времени с последнего звука, это явно множественное нажатие
+        if currentTime - lastHitTime < (minimumTimeBetweenHits * 0.3) {
+            // Считаем как удар мимо (для множественных звуков на одном бите)
+            print("Обнаружен множественный звук в течение короткого времени: \(currentTime - lastHitTime)c")
+            extraHits += 1
             return
         }
         
-        // Проверяем, не было ли уже попадания на этот бит
-        if Int(nearestBeatNumber) == lastHitBeat {
-            print("Повторное обнаружение звука на тот же бит: \(nearestBeatNumber)")
+        // Если это тот же бит, что и раньше, но прошло немного больше времени
+        if Int(nearestBeatNumber) == lastHitBeat && currentTime - lastHitTime < beatInterval * 0.6 {
+            print("Обнаружен множественный звук для бита \(nearestBeatNumber)")
+            extraHits += 1
+            lastHitTime = currentTime // Обновляем время последнего звука, чтобы следить за частотой
             return
         }
         
+        // Основная логика определения попадания
         lastHitTime = currentTime
         lastHitBeat = Int(nearestBeatNumber)
         
