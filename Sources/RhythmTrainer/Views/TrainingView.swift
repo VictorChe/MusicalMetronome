@@ -192,23 +192,21 @@ struct TrainingView: View {
 
     private func setupAudioEngine() {
         if model.mode == .microphone {
-            audioEngine.startMonitoring { intensity in
-                handleUserAction()
-            }
+            audioEngine.startMonitoring()
         }
     }
 
     private func handleUserAction() {
+        let previousPerfectHits = model.perfectHits
+        let previousGoodHits = model.goodHits
+        let previousMissedHits = model.missedHits
+        
         if model.mode == .tap {
             model.handleTap()
         } else {
             model.handleAudioInput(intensity: audioEngine.audioLevel)
         }
-
-        let previousPerfectHits = model.perfectHits
-        let previousGoodHits = model.goodHits
-        let previousMissedHits = model.missedHits
-
+        
         if model.perfectHits > previousPerfectHits {
             feedback = "Идеально!"
             feedbackColor = .green
@@ -219,7 +217,7 @@ struct TrainingView: View {
             feedback = "Мимо"
             feedbackColor = .orange
         }
-
+        
         showFeedback = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             showFeedback = false
