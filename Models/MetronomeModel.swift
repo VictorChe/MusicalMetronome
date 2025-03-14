@@ -155,15 +155,23 @@ class MetronomeModel: ObservableObject {
 
         // Определяем тип попадания
         let deviationRatio = deviation / beatInterval
+        
+        // Определяем тип попадания на основе отклонения
         if deviationRatio <= perfectThresholdRatio {
+            print("Идеальное попадание: \(deviationRatio)")
             perfectHits += 1
         } else if deviationRatio <= goodThresholdRatio {
+            print("Хорошее попадание: \(deviationRatio)")
             goodHits += 1
         } else if deviationRatio <= 0.3 { // Максимальное отклонение 30%
+            print("Неточное попадание: \(deviationRatio)")
             missedHits += 1
         } else {
+            print("Нота мимо: \(deviationRatio)")
             extraHits += 1
         }
+        
+        print("Статистика - Идеальные: \(perfectHits), Хорошие: \(goodHits), Неточные: \(missedHits), Мимо: \(extraHits)")
     }
 
     func handleAudioInput(intensity: Double) {
