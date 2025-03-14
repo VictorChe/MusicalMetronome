@@ -164,7 +164,9 @@ struct TrainingView: View {
                 .fontWeight(.bold)
                 .onAppear {
                     // Автоматически показываем результаты при завершении тренировки
-                    showResults = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        showResults = true
+                    }
                 }
 
             Button {
