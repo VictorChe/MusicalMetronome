@@ -77,16 +77,42 @@ class AudioEngine: NSObject, ObservableObject {
     }
 
     func startMonitoring() {
-        guard permissionGranted, !isMonitoring, let audioEngine = audioEngine else { return }
-
+        guard !isMonitoring else { return }
+        
+        // Запрашиваем разрешение на доступ к микрофону
+        AVAudioSession.sharedInstance().requestRecordPermission { [weak self] granted in
+            guard let self = self, granted else {
+                print("Нет разрешения на доступ к микрофону")
+                return
+            }
+            
+            self.permissionGranted = true
+            DispatchQueue.main.async {
+                self.setupAndStartAudioEngine()
+            }
+        }
+    }
+    
+    private func setupAndStartAudioEngine() {
+        guard let audioEngine = audioEngine else {
+            setupAudioEngine()
+            startMonitoring()
+            return
+        }
+        
         do {
-            try AVAudioSession.sharedInstance().setCategory(.playAndRecord, options: .defaultToSpeaker)
+            // Конфигурируем аудио сессию с минимальными настройками
+            try AVAudioSession.sharedInstance().setCategory(.record, mode: .default)
             try AVAudioSession.sharedInstance().setActive(true)
-
+            
+            // Очищаем буфер предыдущих уровней
+            previousAudioLevels.removeAll()
+            
             audioEngine.prepare()
             try audioEngine.start()
-
+            
             isMonitoring = true
+            print("Аудио мониторинг успешно запущен")
         } catch {
             print("Ошибка при запуске аудио мониторинга: \(error.localizedDescription)")
         }
@@ -127,22 +153,29 @@ class AudioEngine: NSObject, ObservableObject {
     private func detectBeat(currentLevel: Double) {
         guard previousAudioLevels.count > 2 else { return }
 
-        // Снизим требование к частотам для гитары и других инструментов
+        // Снизим порог обнаружения значительно
         let previousAverage = previousAudioLevels.dropLast().reduce(0, +) / Double(previousAudioLevels.count - 1)
         
-        // Снизим порог обнаружения для большей чувствительности
-        let adjustedThreshold = beatDetectionThreshold * 0.7
-        let isVolumeSpike = currentLevel > previousAverage + adjustedThreshold
+        // Сильно снизим порог обнаружения для улавливания даже слабых сигналов
+        let adjustedThreshold = beatDetectionThreshold * 0.3
         
-        // Расширим условие для обнаружения не только ударных, но и других инструментов
-        let hasRelevantFrequencies = hasMusicalFrequencies()
+        // Проверяем либо скачок громкости, либо просто достаточную громкость
+        let isVolumeSpike = currentLevel > previousAverage + adjustedThreshold
+        let isLoudEnough = currentLevel > 0.05 // Снизим порог минимальной громкости
+        
+        // Игнорируем проверку частот для повышения чувствительности
+        // let hasRelevantFrequencies = hasMusicalFrequencies()
 
-        if isVolumeSpike || (currentLevel > 0.1 && hasRelevantFrequencies) {
-            print("Обнаружен бит: уровень=\(currentLevel), порог=\(previousAverage + adjustedThreshold)")
+        // Выводим подробную отладочную информацию
+        print("Аудио уровень: \(currentLevel), средний: \(previousAverage), порог: \(adjustedThreshold)")
+        
+        // Более простое условие обнаружения звука
+        if isVolumeSpike || isLoudEnough {
+            print("ОБНАРУЖЕН БИТ: уровень=\(currentLevel), порог=\(previousAverage + adjustedThreshold)")
             isBeatDetected = true
             onAudioDetected?(currentLevel)
 
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                 self.isBeatDetected = false
             }
         }

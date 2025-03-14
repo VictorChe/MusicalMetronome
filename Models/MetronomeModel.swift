@@ -194,16 +194,24 @@ class MetronomeModel: ObservableObject {
         
         let currentTime = Date().timeIntervalSince1970
         
-        // Минимальная громкость для регистрации удара
-        let intensityThreshold = 0.1
+        // Снижаем минимальную громкость для регистрации удара
+        let intensityThreshold = 0.04 // Снижен с 0.1 до 0.04
         if intensity < intensityThreshold {
-            return // Игнорируем слишком тихие звуки
+            // Сообщаем о слишком тихом звуке, но не выходим полностью из функции
+            print("Звук слишком тихий: \(intensity), нужно минимум \(intensityThreshold)")
+            // Если звук совсем тихий, выходим
+            if intensity < 0.01 {
+                return
+            }
         }
         
         print("Обнаружен аудиосигнал с интенсивностью: \(intensity)")
         
         // Получаем текущее время с момента начала
-        guard let startTime = startTime else { return }
+        guard let startTime = startTime else { 
+            print("Ошибка: startTime не установлено")
+            return 
+        }
         let actualElapsed = Date().timeIntervalSince(startTime)
         
         // Рассчитываем, на каком мы сейчас бите и каково отклонение
@@ -213,36 +221,45 @@ class MetronomeModel: ObservableObject {
         // Отклонение в долях бита (от 0 до 0.5)
         let beatDeviation = abs(exactBeatPosition - nearestBeatNumber)
         
+        // Увеличиваем допустимое отклонение для режима микрофона
+        let microAdjustment = 1.5 // Увеличиваем пороги в 1.5 раза
+        
         // Проверяем минимальный интервал между нажатиями
-        if currentTime - lastHitTime < minimumTimeBetweenHits {
-            print("Слишком частое обнаружение звука")
+        // Использовать более короткий интервал для режима микрофона
+        if currentTime - lastHitTime < (minimumTimeBetweenHits * 0.8) {
+            print("Слишком частое обнаружение звука: пропущено \(currentTime - lastHitTime)s")
             return
         }
         
         // Проверяем, не было ли уже попадания на этот бит
         if Int(nearestBeatNumber) == lastHitBeat {
-            print("Повторное обнаружение звука на тот же бит")
+            print("Повторное обнаружение звука на тот же бит: \(nearestBeatNumber)")
             return
         }
         
         lastHitTime = currentTime
         lastHitBeat = Int(nearestBeatNumber)
         
-        // Определяем тип попадания
+        // Определяем тип попадания с учетом увеличенных порогов для микрофона
         print("Отклонение в долях бита: \(beatDeviation)")
         
-        if beatDeviation <= perfectThresholdRatio {
+        // Для режима микрофона увеличиваем пороги
+        let adjustedPerfectThreshold = perfectThresholdRatio * microAdjustment
+        let adjustedGoodThreshold = goodThresholdRatio * microAdjustment 
+        let adjustedPoorThreshold = poorThresholdRatio * microAdjustment
+        
+        if beatDeviation <= adjustedPerfectThreshold {
             perfectHits += 1
-            print("Идеальное попадание: \(beatDeviation)")
-        } else if beatDeviation <= goodThresholdRatio {
+            print("Идеальное попадание: \(beatDeviation) (порог: \(adjustedPerfectThreshold))")
+        } else if beatDeviation <= adjustedGoodThreshold {
             goodHits += 1
-            print("Хорошее попадание: \(beatDeviation)")
-        } else if beatDeviation <= poorThresholdRatio {
+            print("Хорошее попадание: \(beatDeviation) (порог: \(adjustedGoodThreshold))")
+        } else if beatDeviation <= adjustedPoorThreshold {
             missedHits += 1
-            print("Неточное попадание: \(beatDeviation)")
+            print("Неточное попадание: \(beatDeviation) (порог: \(adjustedPoorThreshold))")
         } else {
             extraHits += 1
-            print("Нота мимо: \(beatDeviation)")
+            print("Нота мимо: \(beatDeviation) (выше порога: \(adjustedPoorThreshold))")
         }
         
         print("Статистика - Идеальные: \(perfectHits), Хорошие: \(goodHits), Неточные: \(missedHits), Мимо: \(extraHits)")
