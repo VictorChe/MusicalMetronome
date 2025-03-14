@@ -135,9 +135,21 @@ class MetronomeModel: ObservableObject {
         guard isRunning else { return }
 
         let currentTime = Date().timeIntervalSince1970
-        let elapsedBeats = elapsedTime / beatInterval
-        let nearestBeat = round(elapsedBeats)
-        let deviation = abs(elapsedBeats - nearestBeat) * beatInterval
+        
+        // Получаем текущее время с момента начала
+        guard let startTime = startTime else { return }
+        let actualElapsed = Date().timeIntervalSince(startTime)
+        
+        // Рассчитываем, на каком мы сейчас бите и каково отклонение
+        let exactBeatPosition = actualElapsed / beatInterval  // Точная позиция в битах
+        let nearestBeatNumber = round(exactBeatPosition)      // Ближайший целый бит
+        
+        // Отклонение в долях бита (от 0 до 0.5)
+        let beatDeviation = abs(exactBeatPosition - nearestBeatNumber)
+        // Отклонение в секундах
+        let timeDeviation = beatDeviation * beatInterval
+        
+        print("Точная позиция: \(exactBeatPosition), Ближайший бит: \(nearestBeatNumber), Отклонение в долях: \(beatDeviation), Отклонение в секундах: \(timeDeviation)")
 
         // Проверяем минимальный интервал между нажатиями
         if currentTime - lastHitTime < minimumTimeBetweenHits {
@@ -147,32 +159,31 @@ class MetronomeModel: ObservableObject {
         }
 
         // Проверяем, не было ли уже попадания на этот бит
-        if Int(nearestBeat) == lastHitBeat {
+        if Int(nearestBeatNumber) == lastHitBeat {
             extraHits += 1
             print("Повторное нажатие на тот же бит")
             return
         }
 
         lastHitTime = currentTime
-        lastHitBeat = Int(nearestBeat)
+        lastHitBeat = Int(nearestBeatNumber)
 
-        // Определяем тип попадания
-        let deviationRatio = deviation / beatInterval
-        print("Отклонение: \(deviationRatio)")
+        // Определяем тип попадания на основе отклонения в долях
+        print("Отклонение в долях бита: \(beatDeviation)")
 
-        // Четкие границы для каждого типа попадания - используем строгие неравенства
-        if deviationRatio <= perfectThresholdRatio {
+        // Используем абсолютное значение отклонения для определения типа попадания
+        if beatDeviation <= perfectThresholdRatio {
             perfectHits += 1
-            print("Идеальное попадание: \(deviationRatio)")
-        } else if deviationRatio <= goodThresholdRatio {
+            print("Идеальное попадание: \(beatDeviation)")
+        } else if beatDeviation <= goodThresholdRatio {
             goodHits += 1
-            print("Хорошее попадание: \(deviationRatio)")
-        } else if deviationRatio <= poorThresholdRatio {
+            print("Хорошее попадание: \(beatDeviation)")
+        } else if beatDeviation <= poorThresholdRatio {
             missedHits += 1
-            print("Неточное попадание: \(deviationRatio)")
+            print("Неточное попадание: \(beatDeviation)")
         } else {
             extraHits += 1
-            print("Нота мимо: \(deviationRatio)")
+            print("Нота мимо: \(beatDeviation)")
         }
 
         print("Статистика - Идеальные: \(perfectHits), Хорошие: \(goodHits), Неточные: \(missedHits), Мимо: \(extraHits)")
