@@ -163,7 +163,11 @@ struct TrainingView: View {
         let previousGoodHits = model.goodHits
         let previousMissedHits = model.missedHits
         
-        model.handleBeat()
+        if model.mode == .tap {
+            model.handleTap()
+        } else {
+            model.handleAudioInput(intensity: audioEngine.audioLevel)
+        }
         
         showFeedback = true
         
