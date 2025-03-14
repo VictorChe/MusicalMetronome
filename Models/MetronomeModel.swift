@@ -3,7 +3,7 @@ import AVFoundation
 
 class MetronomeModel: ObservableObject {
     // Настройки метронома
-    @Published var tempo: Double = 90 
+    @Published var tempo: Double = 90
     @Published var duration: Double = 20
     @Published var mode: TrainingMode = .tap
 
@@ -27,8 +27,8 @@ class MetronomeModel: ObservableObject {
     private var startTime: Date?
 
     // Пороги для попаданий (в долях от интервала между битами)
-    private let perfectThresholdRatio = 0.1 // 10% от интервала
-    private let goodThresholdRatio = 0.2 // 20% от интервала
+    private let perfectThresholdRatio = 0.05 // Reduced for more precise perfect hits
+    private let goodThresholdRatio = 0.15 // Reduced for more precise good hits
 
     // Защита от множественных попаданий
     private var lastHitBeat: Int = -1
@@ -155,7 +155,7 @@ class MetronomeModel: ObservableObject {
 
         // Определяем тип попадания
         let deviationRatio = deviation / beatInterval
-        
+
         // Определяем тип попадания на основе отклонения
         if deviationRatio <= perfectThresholdRatio {
             print("Идеальное попадание: \(deviationRatio)")
@@ -170,7 +170,7 @@ class MetronomeModel: ObservableObject {
             print("Нота мимо: \(deviationRatio)")
             extraHits += 1
         }
-        
+
         print("Статистика - Идеальные: \(perfectHits), Хорошие: \(goodHits), Неточные: \(missedHits), Мимо: \(extraHits)")
     }
 
