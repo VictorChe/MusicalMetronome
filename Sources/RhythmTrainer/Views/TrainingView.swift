@@ -5,7 +5,7 @@ import AVFoundation
 struct TrainingView: View {
     @ObservedObject var model: MetronomeModel
     @ObservedObject var audioEngine = AudioEngine()
-    @Environment(\.dismiss) var dismiss
+    @Environment(\.dismiss) private var dismiss
     @State private var showResults = false
     @State private var feedback = ""
     @State private var feedbackColor = Color.gray
