@@ -165,7 +165,7 @@ struct TrainingView: View {
         
         if model.mode == .tap {
             model.handleTap()
-        } else if model.mode == .microphone {
+        } else {
             model.handleAudioInput(intensity: audioEngine.audioLevel)
         }
         
