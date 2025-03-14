@@ -49,15 +49,30 @@ class AudioEngine: NSObject, ObservableObject {
     }
 
     private func setupAudioEngine() {
-        audioEngine = AVAudioEngine()
-        inputNode = audioEngine?.inputNode
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.playAndRecord, mode: .default)
+            try AVAudioSession.sharedInstance().setActive(true)
+            
+            audioEngine = AVAudioEngine()
+            inputNode = audioEngine?.inputNode
 
-        guard let inputNode = inputNode else { return }
+            guard let inputNode = inputNode else { return }
 
-        let recordingFormat = inputNode.outputFormat(forBus: 0)
+            let inputFormat = inputNode.outputFormat(forBus: 0)
+            let recordingFormat = AVAudioFormat(
+                standardFormatWithSampleRate: inputFormat.sampleRate,
+                channels: 1
+            )
+            
+            guard let recordingFormat = recordingFormat else { return }
 
-        inputNode.installTap(onBus: 0, bufferSize: UInt32(bufferSize), format: recordingFormat) { [weak self] (buffer, when) in
-            self?.processAudioBuffer(buffer)
+            inputNode.installTap(onBus: 0, bufferSize: UInt32(bufferSize), format: recordingFormat) { [weak self] (buffer, when) in
+                self?.processAudioBuffer(buffer)
+            }
+            
+            audioEngine?.prepare()
+        } catch {
+            print("Error setting up audio engine: \(error.localizedDescription)")
         }
     }
 
