@@ -25,8 +25,14 @@ class MetronomeModel: ObservableObject {
     private var timer: Timer?
     private var startTime: Date?
 
-    let goodHitThreshold = 0.1
-    let perfectHitThreshold = 0.05
+    // Временные окна для попаданий
+    let goodHitThreshold = 0.15 // 150ms для хороших попаданий
+    let perfectHitThreshold = 0.05 // 50ms для идеальных попаданий
+
+    // Защита от множественных попаданий
+    private var lastHitBeat: Int = -1
+    private var lastHitTime: TimeInterval = 0
+    private let minimumTimeBetweenHits: TimeInterval = 0.1
 
     var beatInterval: TimeInterval {
         60.0 / tempo
@@ -37,11 +43,9 @@ class MetronomeModel: ObservableObject {
     }
 
     var progress: Double {
-        if isRunning {
-            return min(elapsedTime / duration, 1.0)
-        } else {
-            return 0
-        }
+        guard let startTime = startTime else { return 0 }
+        let actualElapsed = Date().timeIntervalSince(startTime)
+        return min(actualElapsed / duration, 1.0)
     }
 
     enum TrainingMode: String, CaseIterable, Identifiable {
@@ -56,12 +60,16 @@ class MetronomeModel: ObservableObject {
     }
 
     func resetResults() {
+        print("Сброс результатов тренировки")
         perfectHits = 0
         goodHits = 0
         missedHits = 0
         skippedBeats = 0
         currentBeat = 0
         elapsedTime = 0
+        lastHitBeat = -1
+        lastHitTime = 0
+        startTime = nil
     }
 
     private func setupAudio() {
@@ -71,12 +79,6 @@ class MetronomeModel: ObservableObject {
             try AVAudioSession.sharedInstance().setActive(true)
             print("Аудио сессия настроена")
 
-            // Проверяем пути к ресурсам
-            if let resourcePath = Bundle.main.resourcePath {
-                print("Путь к ресурсам: \(resourcePath)")
-            }
-
-            // Проверяем наличие звукового файла
             if let soundURL = Bundle.main.url(forResource: "metronome-click", withExtension: "wav") {
                 print("Найден звуковой файл: \(soundURL)")
                 audioPlayer = try AVAudioPlayer(contentsOf: soundURL)
@@ -85,9 +87,6 @@ class MetronomeModel: ObservableObject {
                 print("Аудио плеер успешно настроен")
             } else {
                 print("ОШИБКА: Не удалось найти файл metronome-click.wav")
-                // Попробуем найти все .wav файлы в бандле
-                let wavFiles = Bundle.main.urls(forResourcesWithExtension: "wav", subdirectory: nil)
-                print("Доступные .wav файлы: \(wavFiles ?? [])")
             }
         } catch {
             print("ОШИБКА настройки аудио: \(error.localizedDescription)")
@@ -95,12 +94,12 @@ class MetronomeModel: ObservableObject {
     }
 
     private func updateClickVolume() {
-        // В режиме микрофона устанавливаем тихий звук клика
         audioPlayer?.volume = mode == .microphone ? 0.3 : 1.0
         print("Установлена громкость клика: \(audioPlayer?.volume ?? 0)")
     }
 
     func startMetronome() {
+        print("Запуск метронома")
         resetResults()
         isCountdown = true
         countdownCount = 4
@@ -120,6 +119,7 @@ class MetronomeModel: ObservableObject {
                     self.isRunning = true
                     self.startTime = Date()
                     self.playTick()
+                    print("Начало тренировки")
                 }
             } else if self.isRunning {
                 if let startTime = self.startTime {
@@ -127,7 +127,11 @@ class MetronomeModel: ObservableObject {
                 }
                 self.currentBeat += 1
                 self.playTick()
+
+                print("Текущий бит: \(self.currentBeat)/\(self.totalBeats)")
+
                 if self.currentBeat >= self.totalBeats {
+                    print("Достигнуто максимальное количество битов")
                     self.stopMetronome()
                 }
             }
@@ -136,12 +140,14 @@ class MetronomeModel: ObservableObject {
 
     func stopMetronome() {
         print("Остановка метронома")
+        print("Итоговая статистика - Идеальные: \(perfectHits), Хорошие: \(goodHits), Неточные: \(missedHits)")
         isRunning = false
         isCountdown = false
         timer?.invalidate()
         timer = nil
         audioPlayer?.stop()
         try? AVAudioSession.sharedInstance().setActive(false)
+        startTime = nil
     }
 
     private func playTick() {
@@ -159,39 +165,119 @@ class MetronomeModel: ObservableObject {
         audioPlayer.play()
     }
 
-    func handleTap() {
-        guard isRunning else { return }
-        let timeSinceLastBeat = elapsedTime.truncatingRemainder(dividingBy: beatInterval)
+    private func calculateHitAccuracy() -> (beatNumber: Int, timeDifference: TimeInterval) {
+        guard let startTime = startTime else {
+            return (-1, .infinity)
+        }
+
+        let actualElapsed = Date().timeIntervalSince(startTime)
+        let currentBeatNumber = Int(actualElapsed / beatInterval)
+        let timeSinceLastBeat = actualElapsed.truncatingRemainder(dividingBy: beatInterval)
         let timeToNextBeat = beatInterval - timeSinceLastBeat
         let timeDifference = min(timeSinceLastBeat, timeToNextBeat)
 
+        return (currentBeatNumber, timeDifference)
+    }
+
+    func handleTap() {
+        guard isRunning else { return }
+
+        let currentTime = Date().timeIntervalSince1970
+        let (currentBeatNumber, timeDifference) = calculateHitAccuracy()
+
+        print("""
+            Обработка тапа:
+            - Текущий бит: \(currentBeatNumber)
+            - Последний бит с попаданием: \(lastHitBeat)
+            - Время с последнего попадания: \(currentTime - lastHitTime)
+            - Разница во времени: \(timeDifference)
+            """)
+
+        // Проверяем минимальный интервал между попаданиями
+        if currentTime - lastHitTime < minimumTimeBetweenHits {
+            print("Игнорируем слишком частые попадания")
+            return
+        }
+
+        // Проверяем, не было ли уже попадания на этот бит
+        if currentBeatNumber == lastHitBeat {
+            print("Игнорируем повторное попадание на бит \(currentBeatNumber)")
+            return
+        }
+
+        lastHitTime = currentTime
+        lastHitBeat = currentBeatNumber
+
+        // Определяем тип попадания и обновляем статистику
         if timeDifference < perfectHitThreshold {
             perfectHits += 1
+            print("Идеальное попадание на бит \(currentBeatNumber)")
         } else if timeDifference < goodHitThreshold {
             goodHits += 1
+            print("Хорошее попадание на бит \(currentBeatNumber)")
         } else {
             missedHits += 1
+            print("Неточное попадание на бит \(currentBeatNumber)")
         }
+
+        print("Текущая статистика - Идеальные: \(perfectHits), Хорошие: \(goodHits), Неточные: \(missedHits)")
     }
 
     func handleAudioInput(intensity: Double) {
         guard isRunning else { return }
-        let timeSinceLastBeat = elapsedTime.truncatingRemainder(dividingBy: beatInterval)
-        let timeToNextBeat = beatInterval - timeSinceLastBeat
-        let timeDifference = min(timeSinceLastBeat, timeToNextBeat)
 
+        let currentTime = Date().timeIntervalSince1970
+        let (currentBeatNumber, timeDifference) = calculateHitAccuracy()
+
+        print("""
+            Обработка аудио входа:
+            - Интенсивность: \(intensity)
+            - Текущий бит: \(currentBeatNumber)
+            - Последний бит с попаданием: \(lastHitBeat)
+            - Время с последнего попадания: \(currentTime - lastHitTime)
+            - Разница во времени: \(timeDifference)
+            """)
+
+        // Проверяем минимальный интервал между попаданиями
+        if currentTime - lastHitTime < minimumTimeBetweenHits {
+            print("Игнорируем слишком частые попадания")
+            return
+        }
+
+        // Проверяем, не было ли уже попадания на этот бит
+        if currentBeatNumber == lastHitBeat {
+            print("Игнорируем повторное попадание на бит \(currentBeatNumber)")
+            return
+        }
+
+        lastHitTime = currentTime
+        lastHitBeat = currentBeatNumber
+
+        // Определяем тип попадания и обновляем статистику
         if timeDifference < perfectHitThreshold {
             perfectHits += 1
+            print("Идеальное попадание на бит \(currentBeatNumber)")
         } else if timeDifference < goodHitThreshold {
             goodHits += 1
+            print("Хорошее попадание на бит \(currentBeatNumber)")
         } else {
             missedHits += 1
+            print("Неточное попадание на бит \(currentBeatNumber)")
         }
+
+        print("Текущая статистика - Идеальные: \(perfectHits), Хорошие: \(goodHits), Неточные: \(missedHits)")
     }
 
     func calculateSkippedBeats() {
         let totalHits = perfectHits + goodHits + missedHits
         skippedBeats = totalBeats - totalHits
         if skippedBeats < 0 { skippedBeats = 0 }
+
+        print("""
+            Подсчет пропущенных битов:
+            - Всего битов: \(totalBeats)
+            - Всего попаданий: \(totalHits)
+            - Пропущено: \(skippedBeats)
+            """)
     }
 }
