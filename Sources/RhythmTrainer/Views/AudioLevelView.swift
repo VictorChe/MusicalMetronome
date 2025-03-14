@@ -9,7 +9,8 @@ struct AudioLevelView: View {
                 ForEach(0..<20, id: \.self) { index in
                     Rectangle()
                         .fill(barColor(for: index))
-                        .frame(width: 10, height: barHeight(for: index))
+                        .frame(width: 10)
+                        .frame(height: barHeight(for: index))
                         .cornerRadius(5)
                 }
             }

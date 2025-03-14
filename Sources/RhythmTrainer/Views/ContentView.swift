@@ -12,7 +12,6 @@ struct ContentView: View {
                     .fontWeight(.bold)
                     .padding(.top, 50)
 
-                // Информация о текущих настройках
                 VStack(spacing: 10) {
                     settingsRow(icon: "metronome", text: "\(Int(metronomeModel.tempo)) BPM")
                     settingsRow(icon: "clock", text: "\(Int(metronomeModel.duration)) секунд")
@@ -27,7 +26,6 @@ struct ContentView: View {
 
                 Spacer()
 
-                // Навигационные кнопки
                 NavigationLink {
                     SettingsView(model: metronomeModel)
                 } label: {
