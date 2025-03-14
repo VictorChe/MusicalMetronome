@@ -51,3 +51,59 @@ struct AudioLevelView_Previews: PreviewProvider {
             .padding()
     }
 }
+import SwiftUI
+
+struct AudioLevelView: View {
+    var level: Double
+    private let maxLevel: Double = 1.0
+    
+    var body: some View {
+        VStack {
+            Text("Уровень звука")
+                .font(.caption)
+                .foregroundColor(.secondary)
+            
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    // Фоновая полоса
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.2))
+                    
+                    // Индикатор уровня
+                    Rectangle()
+                        .fill(levelColor)
+                        .frame(width: geometry.size.width * CGFloat(min(level / maxLevel, 1.0)))
+                }
+                .cornerRadius(5)
+            }
+            .frame(height: 30)
+            
+            // Маркеры уровня
+            HStack {
+                Text("0")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Spacer()
+                Text("Уровень: \(Int(level * 100))")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Spacer()
+                Text("100")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+    
+    var levelColor: Color {
+        let normalizedLevel = min(level / maxLevel, 1.0)
+        
+        if normalizedLevel < 0.3 {
+            return .green
+        } else if normalizedLevel < 0.7 {
+            return .yellow
+        } else {
+            return .red
+        }
+    }
+}

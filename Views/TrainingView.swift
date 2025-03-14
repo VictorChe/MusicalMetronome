@@ -106,15 +106,19 @@ struct TrainingView: View {
                 .background(Color.gray.opacity(0.1))
                 .cornerRadius(10)
 
-                if showFeedback {
-                    Text(feedback)
-                        .foregroundColor(feedbackColor)
-                        .padding()
-                        .background(feedbackColor.opacity(0.1))
-                        .cornerRadius(10)
-                        .transition(.opacity)
-                        .animation(.easeInOut(duration: 0.2), value: showFeedback)
+                // Контейнер с фиксированной высотой для отображения обратной связи
+                ZStack {
+                    if showFeedback {
+                        Text(feedback)
+                            .foregroundColor(feedbackColor)
+                            .padding()
+                            .background(feedbackColor.opacity(0.1))
+                            .cornerRadius(10)
+                            .transition(.opacity)
+                            .animation(.easeInOut(duration: 0.2), value: showFeedback)
+                    }
                 }
+                .frame(height: 50) // Фиксированная высота блока с обратной связью
 
                 if model.mode == .tap {
                     Button {
@@ -158,7 +162,13 @@ struct TrainingView: View {
             Text("Тренировка завершена!")
                 .font(.title)
                 .fontWeight(.bold)
-
+                .onAppear {
+                    // Автоматически показываем результаты при завершении тренировки
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        showResults = true
+                    }
+                }
+            
             Button {
                 showResults = true
             } label: {

@@ -2,7 +2,6 @@ import SwiftUI
 
 struct SettingsView: View {
     @ObservedObject var model: MetronomeModel
-    @State private var showLatencyInfo = false
 
     var body: some View {
         Form {
@@ -39,66 +38,29 @@ struct SettingsView: View {
                     }
                 }
                 .pickerStyle(SegmentedPickerStyle())
-            }
-
-            Section(header: Text("Калибровка задержки")) {
-                Slider(value: $model.latencyCompensation, in: -100...100, step: 5) {
-                    Text("Компенсация латентности (мс)")
-                } minimumValueLabel: {
-                    Text("-100")
-                } maximumValueLabel: {
-                    Text("100")
-                }
-
-                Text("Компенсация: \(Int(model.latencyCompensation)) мс")
-                    .frame(maxWidth: .infinity, alignment: .center)
-
-                Button(action: {
-                    showLatencyInfo.toggle()
-                }) {
-                    Label("Рекомендации по настройке", systemImage: "info.circle")
-                }
-
-                if showLatencyInfo {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Рекомендуемые настройки:")
-                            .font(.headline)
-
-                        Text("• Проводные наушники: 0-30 мс")
-                            .font(.caption)
-
-                        Text("• AirPods/Bluetooth: 40-80 мс")
-                            .font(.caption)
-
-                        Text("• Без наушников: -20-0 мс")
-                            .font(.caption)
-                            .padding(.bottom, 4)
-
-                        Text("Более высокие значения: если звуки засчитываются поздно")
-                            .font(.caption)
-
-                        Text("Более низкие значения: если звуки засчитываются рано")
-                            .font(.caption)
-                    }
-                    .padding()
-                    .background(Color.secondary.opacity(0.1))
-                    .cornerRadius(8)
-                }
-            }
-
-            Section(header: Text("Улучшение записи звука")) {
-                Toggle("Блокировать частые звуки", isOn: .constant(true))
-                    .disabled(true) 
-
-                Toggle("Игнорировать эхо метронома", isOn: .constant(true))
-                    .disabled(true) 
 
                 if model.mode == .microphone {
-                    Text("Рекомендуется снизить громкость метронома при использовании микрофона для уменьшения эхо.")
+                    Text("Требуется доступ к микрофону")
                         .font(.caption)
                         .foregroundColor(.secondary)
-                        .padding(.top, 4)
                 }
+            }
+
+            Section(header: Text("Калибровка задержки"), footer: Text("Рекомендуемые значения: AirPods: 50-70 мс, обычные наушники: 30-50 мс, через динамик: 100-150 мс")) {
+                Slider(value: $model.latencyCompensation, in: 0...200, step: 1) {
+                    Text("Компенсация задержки")
+                } minimumValueLabel: {
+                    Text("0 мс")
+                } maximumValueLabel: {
+                    Text("200 мс")
+                }
+                Text("\(Int(model.latencyCompensation)) мс")
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .font(.headline)
+
+                Toggle("Автоматическая калибровка", isOn: .constant(false))
+                    .disabled(true) // Будущая функция, пока недоступна
+                    .foregroundColor(.gray)
             }
         }
         .navigationTitle("Настройки")
