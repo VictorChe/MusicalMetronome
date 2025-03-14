@@ -407,14 +407,15 @@ struct UserHits: View {
                     let xPosition = (CGFloat(beatPosition) / CGFloat(model.totalBeats - 1)) * geometry.size.width
                     let yPosition = geometry.size.height / 2 + CGFloat(deviation * 50)
                     
-                    let color: Color
-                    if abs(deviation) < 0.05 {
-                        color = .green  // Идеальное попадание
-                    } else if abs(deviation) < 0.15 {
-                        color = .blue   // Хорошее попадание
-                    } else {
-                        color = .orange // Неточное попадание
-                    }
+                    let color: Color = {
+                        if abs(deviation) < 0.05 {
+                            return .green  // Идеальное попадание
+                        } else if abs(deviation) < 0.15 {
+                            return .blue   // Хорошее попадание
+                        } else {
+                            return .orange // Неточное попадание
+                        }
+                    }()
                     
                     Circle()
                         .fill(color)
