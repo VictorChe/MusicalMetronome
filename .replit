@@ -4,7 +4,7 @@ modules = ["swift", "swift-5.9"]
 channel = "stable-24_05"
 
 [workflows]
-runButton = "Project"
+runButton = "iOS App"
 
 [[workflows.workflow]]
 name = "Project"
