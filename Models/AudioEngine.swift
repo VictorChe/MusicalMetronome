@@ -150,6 +150,11 @@ class AudioEngine: NSObject, ObservableObject {
         }
     }
 
+    // Время последнего обнаружения звука
+    private var lastBeatDetectionTime: Date?
+    // Минимальный интервал между звуками для предотвращения множественных обнаружений
+    private let minimumBeatInterval: TimeInterval = 0.15 // 150 мс
+    
     private func detectBeat(currentLevel: Double) {
         guard previousAudioLevels.count > 2 else { return }
 
@@ -158,24 +163,34 @@ class AudioEngine: NSObject, ObservableObject {
             print("Игнорирование вероятного эха метронома")
             return
         }
+        
+        // Проверяем, прошло ли достаточно времени с последнего обнаружения
+        if let lastTime = lastBeatDetectionTime, Date().timeIntervalSince(lastTime) < minimumBeatInterval {
+            print("Слишком частое обнаружение звука, игнорируем")
+            return
+        }
 
         // Снизим порог обнаружения до минимума
         let previousAverage = previousAudioLevels.dropLast().reduce(0, +) / Double(previousAudioLevels.count - 1)
 
-        // Почти полностью уберем порог, чтобы отлавливать даже незначительные изменения
-        let adjustedThreshold = beatDetectionThreshold * 0.1
+        // Устанавливаем более высокий порог для предотвращения множественных срабатываний
+        let adjustedThreshold = beatDetectionThreshold * 0.2
 
-        // Еще сильнее снизим порог минимальной громкости
+        // Повышаем порог минимальной громкости для предотвращения ложных срабатываний
         let isVolumeSpike = currentLevel > previousAverage + adjustedThreshold
-        let isLoudEnough = currentLevel > 0.02 // Предельно низкий порог громкости
+        let isLoudEnough = currentLevel > 0.03 // Немного повышенный порог громкости
+        
+        // Анализируем аудио спектр для более точного определения звука
+        let hasInstrumentSound = hasMusicalFrequencies()
 
         // Выводим подробную отладочную информацию
-        print("Аудио уровень: \(currentLevel), средний: \(previousAverage), порог: \(adjustedThreshold)")
+        print("Аудио уровень: \(currentLevel), средний: \(previousAverage), порог: \(adjustedThreshold), музыкальный звук: \(hasInstrumentSound)")
 
         // Оптимизируем время обнаружения, чтобы минимизировать задержку
-        if isVolumeSpike || isLoudEnough {
+        if (isVolumeSpike || isLoudEnough) {
             print("ОБНАРУЖЕН БИТ: уровень=\(currentLevel), порог=\(previousAverage + adjustedThreshold)")
             isBeatDetected = true
+            lastBeatDetectionTime = Date()
 
             // Немедленно уведомляем о событии
             DispatchQueue.main.async {
@@ -183,7 +198,7 @@ class AudioEngine: NSObject, ObservableObject {
             }
 
             // Сокращаем время "тишины" после обнаружения звука
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                 self.isBeatDetected = false
             }
         }
@@ -282,12 +297,32 @@ class AudioEngine: NSObject, ObservableObject {
 
     // Время последнего клика метронома
     private var lastMetronomeClickTime: Date?
-    private let metronomeEchoWindow: TimeInterval = 0.2 // 200 мс окно для фильтрации эха
+    private let metronomeEchoWindow: TimeInterval = 0.25 // 250 мс окно для фильтрации эха
+    
+    // Характеристики звука метронома для распознавания
+    private var metronomeAudioProfile: [Double] = []
+    private var isMetronomeProfileLearned = false
     
     // Метод, вызываемый метрономом при воспроизведении клика
     func notifyMetronomeClick() {
         lastMetronomeClickTime = Date()
         print("Получено уведомление о клике метронома")
+        
+        // При первых 5 кликах метронома собираем данные о его звуковом профиле
+        if !isMetronomeProfileLearned && metronomeAudioProfile.count < 5 {
+            // Запоминаем текущий аудио уровень и частотный профиль для распознавания
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) { [weak self] in
+                if let level = self?.audioLevel, level > 0.01 {
+                    self?.metronomeAudioProfile.append(level)
+                    print("Добавлена информация о профиле метронома: \(level)")
+                    
+                    if self?.metronomeAudioProfile.count == 5 {
+                        self?.isMetronomeProfileLearned = true
+                        print("Профиль звука метронома изучен")
+                    }
+                }
+            }
+        }
     }
     
     // Метод для определения, является ли обнаруженный звук вероятным эхом метронома
@@ -297,9 +332,22 @@ class AudioEngine: NSObject, ObservableObject {
         let timeSinceLastClick = Date().timeIntervalSince(lastClick)
         let isWithinEchoWindow = timeSinceLastClick < metronomeEchoWindow
         
+        // Используем базовую проверку по времени
         if isWithinEchoWindow {
             print("Обнаружено вероятное эхо метронома: \(timeSinceLastClick) сек после клика")
             return true
+        }
+        
+        // Если есть собранный профиль звука метронома, используем его для более точного определения
+        if isMetronomeProfileLearned && !metronomeAudioProfile.isEmpty {
+            let avgMetronomeLevel = metronomeAudioProfile.reduce(0, +) / Double(metronomeAudioProfile.count)
+            let levelDifference = abs(audioLevel - avgMetronomeLevel)
+            
+            // Если уровень звука похож на уровень метронома с погрешностью 30%
+            if levelDifference < (avgMetronomeLevel * 0.3) {
+                print("Обнаружен звук с характеристиками метронома: \(audioLevel) vs \(avgMetronomeLevel)")
+                return true
+            }
         }
         
         return false

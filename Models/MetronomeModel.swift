@@ -201,18 +201,38 @@ class MetronomeModel: ObservableObject {
         print("Статистика - Идеальные: \(perfectHits), Хорошие: \(goodHits), Неточные: \(missedHits), Мимо: \(extraHits)")
     }
 
+    // Пороги для частоты обнаружения попаданий
+    private var lastDetectedAudioTime: Date?
+    private let minimumAudioDetectionInterval: TimeInterval = 0.15 // 150 мс
+    
+    // Максимальное число "мимо" за тренировку для предотвращения ложных срабатываний
+    private let maxExtraHitsPerTraining = 30
+    
     func handleAudioInput(intensity: Double) {
         guard isRunning else { return }
         
         let currentTime = Date().timeIntervalSince1970
         
-        // Полностью убираем порог интенсивности
-        print("Обнаружен аудиосигнал с интенсивностью: \(intensity)")
-        
         // Получаем текущее время с момента начала
         guard let startTime = startTime else { 
             print("Ошибка: startTime не установлено")
             return 
+        }
+        
+        // Защита от слишком частых аудио событий
+        if let lastAudioTime = lastDetectedAudioTime, 
+           Date().timeIntervalSince(lastAudioTime) < minimumAudioDetectionInterval {
+            print("Игнорирование слишком частого аудиособытия")
+            return
+        }
+        
+        // Устанавливаем время последнего аудиособытия
+        lastDetectedAudioTime = Date()
+        
+        // Ограничиваем максимальное количество нот "мимо" за тренировку
+        if extraHits >= maxExtraHitsPerTraining {
+            print("Достигнуто максимальное количество нот 'мимо', дальнейшие игнорируются")
+            return
         }
         
         // Задержка обработки аудио плюс настраиваемая пользователем компенсация задержки
@@ -233,26 +253,24 @@ class MetronomeModel: ObservableObject {
         let beatDeviation = abs(exactBeatPosition - nearestBeatNumber)
         
         // Значительно увеличиваем допустимое отклонение для режима микрофона
-        let microAdjustment = 3.0 // Увеличиваем пороги в 3 раза
-        
-        // Проверяем минимальный интервал между нажатиями
-        // Добавляем логику для отлавливания множественных нажатий
-        let isMultipleHitWithinSameBeat = false
+        let microAdjustment = 2.5 // Немного уменьшаем увеличение порогов
         
         // Если прошло совсем мало времени с последнего звука, это явно множественное нажатие
-        if currentTime - lastHitTime < (minimumTimeBetweenHits * 0.3) {
-            // Считаем как удар мимо (для множественных звуков на одном бите)
+        if currentTime - lastHitTime < (minimumTimeBetweenHits * 0.5) {
             print("Обнаружен множественный звук в течение короткого времени: \(currentTime - lastHitTime)c")
-            extraHits += 1
-            return
+            return // Полностью игнорируем слишком частые срабатывания
         }
         
         // Если это тот же бит, что и раньше, но прошло немного больше времени
-        if Int(nearestBeatNumber) == lastHitBeat && currentTime - lastHitTime < beatInterval * 0.6 {
+        if Int(nearestBeatNumber) == lastHitBeat && currentTime - lastHitTime < beatInterval * 0.7 {
             print("Обнаружен множественный звук для бита \(nearestBeatNumber)")
-            extraHits += 1
-            lastHitTime = currentTime // Обновляем время последнего звука, чтобы следить за частотой
-            return
+            return // Игнорируем множественные нажатия на том же бите
+        }
+        
+        // Проверка на нахождение в допустимом диапазоне битов
+        if nearestBeatNumber < 1 || nearestBeatNumber > Double(totalBeats) {
+            print("Бит \(nearestBeatNumber) вне допустимого диапазона 1-\(totalBeats)")
+            return // Игнорируем события до начала или после окончания тренировки
         }
         
         // Основная логика определения попадания
@@ -262,14 +280,10 @@ class MetronomeModel: ObservableObject {
         // Определяем тип попадания с учетом сильно увеличенных порогов для микрофона
         print("Отклонение в долях бита: \(beatDeviation)")
         
-        // Для режима микрофона сильно увеличиваем пороги
+        // Для режима микрофона увеличиваем пороги
         let adjustedPerfectThreshold = perfectThresholdRatio * microAdjustment
         let adjustedGoodThreshold = goodThresholdRatio * microAdjustment 
         let adjustedPoorThreshold = poorThresholdRatio * microAdjustment
-        
-        // Печатаем подробную отладочную информацию
-        print("Оригинальные пороги - Идеальное: \(perfectThresholdRatio), Хорошее: \(goodThresholdRatio), Неточное: \(poorThresholdRatio)")
-        print("Скорректированные пороги - Идеальное: \(adjustedPerfectThreshold), Хорошее: \(adjustedGoodThreshold), Неточное: \(adjustedPoorThreshold)")
         
         if beatDeviation <= adjustedPerfectThreshold {
             perfectHits += 1
