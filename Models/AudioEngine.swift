@@ -127,11 +127,18 @@ class AudioEngine: NSObject, ObservableObject {
     private func detectBeat(currentLevel: Double) {
         guard previousAudioLevels.count > 2 else { return }
 
+        // Снизим требование к частотам для гитары и других инструментов
         let previousAverage = previousAudioLevels.dropLast().reduce(0, +) / Double(previousAudioLevels.count - 1)
-        let isVolumeSpike = currentLevel > previousAverage + beatDetectionThreshold
-        let hasDrumFrequencies = hasDrumLikeFrequencies()
+        
+        // Снизим порог обнаружения для большей чувствительности
+        let adjustedThreshold = beatDetectionThreshold * 0.7
+        let isVolumeSpike = currentLevel > previousAverage + adjustedThreshold
+        
+        // Расширим условие для обнаружения не только ударных, но и других инструментов
+        let hasRelevantFrequencies = hasMusicalFrequencies()
 
-        if isVolumeSpike && hasDrumFrequencies {
+        if isVolumeSpike || (currentLevel > 0.1 && hasRelevantFrequencies) {
+            print("Обнаружен бит: уровень=\(currentLevel), порог=\(previousAverage + adjustedThreshold)")
             isBeatDetected = true
             onAudioDetected?(currentLevel)
 
@@ -139,6 +146,27 @@ class AudioEngine: NSObject, ObservableObject {
                 self.isBeatDetected = false
             }
         }
+    }
+    
+    // Расширенный метод для анализа частот, подходящий для разных инструментов
+    private func hasMusicalFrequencies() -> Bool {
+        let musicalFrequencyRanges = [
+            (50.0, 200.0),    // Bass drum, низкие ноты гитары/баса
+            (200.0, 500.0),   // Snare, средние ноты гитары
+            (500.0, 1200.0),  // Средние частоты многих инструментов
+            (1200.0, 5000.0), // Высокие частоты гитары и других инструментов
+            (5000.0, 12000.0) // Hi-hat and cymbals
+        ]
+
+        for freq in dominantFrequencies {
+            for range in musicalFrequencyRanges {
+                if freq >= range.0 && freq <= range.1 {
+                    return true
+                }
+            }
+        }
+
+        return false
     }
 
     private func performFFT(on buffer: UnsafeMutablePointer<Float>, frameCount: Int) {

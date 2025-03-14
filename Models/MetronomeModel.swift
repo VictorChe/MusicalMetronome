@@ -190,7 +190,62 @@ class MetronomeModel: ObservableObject {
     }
 
     func handleAudioInput(intensity: Double) {
-        handleTap() // Используем ту же логику, что и для тапов
+        guard isRunning else { return }
+        
+        let currentTime = Date().timeIntervalSince1970
+        
+        // Минимальная громкость для регистрации удара
+        let intensityThreshold = 0.1
+        if intensity < intensityThreshold {
+            return // Игнорируем слишком тихие звуки
+        }
+        
+        print("Обнаружен аудиосигнал с интенсивностью: \(intensity)")
+        
+        // Получаем текущее время с момента начала
+        guard let startTime = startTime else { return }
+        let actualElapsed = Date().timeIntervalSince(startTime)
+        
+        // Рассчитываем, на каком мы сейчас бите и каково отклонение
+        let exactBeatPosition = actualElapsed / beatInterval
+        let nearestBeatNumber = round(exactBeatPosition)
+        
+        // Отклонение в долях бита (от 0 до 0.5)
+        let beatDeviation = abs(exactBeatPosition - nearestBeatNumber)
+        
+        // Проверяем минимальный интервал между нажатиями
+        if currentTime - lastHitTime < minimumTimeBetweenHits {
+            print("Слишком частое обнаружение звука")
+            return
+        }
+        
+        // Проверяем, не было ли уже попадания на этот бит
+        if Int(nearestBeatNumber) == lastHitBeat {
+            print("Повторное обнаружение звука на тот же бит")
+            return
+        }
+        
+        lastHitTime = currentTime
+        lastHitBeat = Int(nearestBeatNumber)
+        
+        // Определяем тип попадания
+        print("Отклонение в долях бита: \(beatDeviation)")
+        
+        if beatDeviation <= perfectThresholdRatio {
+            perfectHits += 1
+            print("Идеальное попадание: \(beatDeviation)")
+        } else if beatDeviation <= goodThresholdRatio {
+            goodHits += 1
+            print("Хорошее попадание: \(beatDeviation)")
+        } else if beatDeviation <= poorThresholdRatio {
+            missedHits += 1
+            print("Неточное попадание: \(beatDeviation)")
+        } else {
+            extraHits += 1
+            print("Нота мимо: \(beatDeviation)")
+        }
+        
+        print("Статистика - Идеальные: \(perfectHits), Хорошие: \(goodHits), Неточные: \(missedHits), Мимо: \(extraHits)")
     }
 
     func calculateSkippedBeats() {
