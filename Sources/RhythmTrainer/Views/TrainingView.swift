@@ -10,7 +10,7 @@ struct TrainingView: View {
     @State private var showFeedback = false
 
     var body: some View {
-        VStack {
+        VStack(spacing: 20) {
             if model.isCountdown {
                 countdownView
             } else if model.isRunning {
@@ -34,7 +34,7 @@ struct TrainingView: View {
         }
     }
 
-    var countdownView: some View {
+    private var countdownView: some View {
         VStack(spacing: 30) {
             Text("Приготовьтесь...")
                 .font(.title)
@@ -56,8 +56,8 @@ struct TrainingView: View {
         }
     }
 
-    var trainingView: some View {
-        VStack {
+    private var trainingView: some View {
+        VStack(spacing: 20) {
             // Прогресс и время
             VStack(spacing: 4) {
                 ProgressView(value: model.progress)
@@ -71,7 +71,6 @@ struct TrainingView: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
             }
-            .padding(.bottom)
 
             // Счетчики попаданий
             VStack(spacing: 8) {
@@ -133,31 +132,31 @@ struct TrainingView: View {
                 .foregroundColor(feedbackColor)
                 .opacity(showFeedback ? 1 : 0)
                 .animation(.easeInOut(duration: 0.2), value: showFeedback)
-                .padding()
+                .padding(.vertical)
 
             Spacer()
 
-            // Элементы управления в зависимости от режима
-            if model.mode == .tap {
-                Button(action: {
-                    handleUserAction(intensity: 1.0)
-                }) {
-                    Text("Тап")
-                        .font(.title)
-                        .foregroundColor(.white)
-                        .frame(width: 150, height: 150)
-                        .background(Color.blue)
-                        .clipShape(Circle())
-                        .shadow(radius: 5)
+            // Элементы управления
+            Group {
+                if model.mode == .tap {
+                    Button(action: {
+                        handleUserAction(intensity: 1.0)
+                    }) {
+                        Text("Тап")
+                            .font(.title)
+                            .foregroundColor(.white)
+                            .frame(width: 150, height: 150)
+                            .background(Color.blue)
+                            .clipShape(Circle())
+                            .shadow(radius: 5)
+                    }
+                } else {
+                    AudioLevelView(level: audioEngine.audioLevel * 10)
+                        .frame(height: 100)
                 }
-                .padding(.bottom, 30)
-            } else {
-                MicrophoneLevelView(level: audioEngine.audioLevel * 10)
-                    .frame(height: 100)
-                    .padding(.bottom, 30)
             }
+            .padding(.vertical, 30)
 
-            // Кнопка завершения
             Button(action: {
                 model.stopMetronome()
                 if model.mode == .microphone {
@@ -172,7 +171,7 @@ struct TrainingView: View {
         }
     }
 
-    var finishedView: some View {
+    private var finishedView: some View {
         VStack(spacing: 30) {
             Text("Тренировка завершена!")
                 .font(.title)
@@ -227,7 +226,6 @@ struct TrainingView: View {
         feedbackColor = color
         showFeedback = true
 
-        // Скрываем обратную связь через некоторое время
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             withAnimation {
                 showFeedback = false
@@ -242,49 +240,8 @@ struct TrainingView: View {
     }
 }
 
-// Представление для визуализации уровня микрофона
-struct MicrophoneLevelView: View {
-    var level: Double
-
-    var body: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 3) {
-                ForEach(0..<20, id: \.self) { index in
-                    Rectangle()
-                        .fill(barColor(for: index))
-                        .frame(width: 10)
-                        .frame(height: barHeight(for: index))
-                        .cornerRadius(5)
-                }
-            }
-
-            Text("Микрофон активен")
-                .font(.caption)
-                .foregroundColor(.secondary)
-        }
-    }
-
-    private func barHeight(for index: Int) -> CGFloat {
-        let baseHeight: Double = 20.0
-        let maxHeight: Double = 100.0
-
-        let threshold = Double(index) * 0.2
-        let scaledLevel = min(max(0, level - threshold) * 2, 1)
-
-        return baseHeight + (maxHeight - baseHeight) * scaledLevel
-    }
-
-    private func barColor(for index: Int) -> Color {
-        let threshold = Double(index) * 0.2
-
-        if level > threshold + 0.8 {
-            return .red
-        } else if level > threshold + 0.5 {
-            return .orange
-        } else if level > threshold {
-            return .green
-        } else {
-            return Color.gray.opacity(0.3)
-        }
+struct TrainingView_Previews: PreviewProvider {
+    static var previews: some View {
+        TrainingView(model: MetronomeModel())
     }
 }
