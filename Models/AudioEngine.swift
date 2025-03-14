@@ -38,14 +38,31 @@ class AudioEngine: NSObject, ObservableObject {
     }
 
     func requestPermission() {
-        AVAudioSession.sharedInstance().requestRecordPermission { [weak self] granted in
-            DispatchQueue.main.async {
-                self?.permissionGranted = granted
-                if granted {
-                    self?.setupAudioEngine()
+        #if os(iOS)
+        if #available(iOS 17.0, *) {
+            AVAudioApplication.requestRecordPermissionWithCompletionHandler { [weak self] granted in
+                DispatchQueue.main.async {
+                    self?.permissionGranted = granted
+                    if granted {
+                        self?.setupAudioEngine()
+                    }
+                }
+            }
+        } else {
+            AVAudioSession.sharedInstance().requestRecordPermission { [weak self] granted in
+                DispatchQueue.main.async {
+                    self?.permissionGranted = granted
+                    if granted {
+                        self?.setupAudioEngine()
+                    }
                 }
             }
         }
+        #else
+        // Для macOS или других платформ
+        self.permissionGranted = true
+        self.setupAudioEngine()
+        #endif
     }
 
     private func setupAudioEngine() {
@@ -80,17 +97,39 @@ class AudioEngine: NSObject, ObservableObject {
         guard !isMonitoring else { return }
 
         // Запрашиваем разрешение на доступ к микрофону
-        AVAudioSession.sharedInstance().requestRecordPermission { [weak self] granted in
-            guard let self = self, granted else {
-                print("Нет разрешения на доступ к микрофону")
-                return
+        #if os(iOS)
+        if #available(iOS 17.0, *) {
+            AVAudioApplication.requestRecordPermissionWithCompletionHandler { [weak self] granted in
+                guard let self = self, granted else {
+                    print("Нет разрешения на доступ к микрофону")
+                    return
+                }
+                
+                self.permissionGranted = true
+                DispatchQueue.main.async {
+                    self.setupAndStartAudioEngine()
+                }
             }
-
-            self.permissionGranted = true
-            DispatchQueue.main.async {
-                self.setupAndStartAudioEngine()
+        } else {
+            AVAudioSession.sharedInstance().requestRecordPermission { [weak self] granted in
+                guard let self = self, granted else {
+                    print("Нет разрешения на доступ к микрофону")
+                    return
+                }
+                
+                self.permissionGranted = true
+                DispatchQueue.main.async {
+                    self.setupAndStartAudioEngine()
+                }
             }
         }
+        #else
+        // Для macOS или других платформ
+        self.permissionGranted = true
+        DispatchQueue.main.async {
+            self.setupAndStartAudioEngine()
+        }
+        #endif
     }
 
     private func setupAndStartAudioEngine() {
@@ -230,7 +269,7 @@ class AudioEngine: NSObject, ObservableObject {
 
         var realPart = [Float](repeating: 0, count: n)
         var imagPart = [Float](repeating: 0, count: n)
-        var realOutput = [Float](repeating: 0, count: n/2)
+        // Удалена неиспользуемая переменная realOutput
 
         // Copy audio data to real part of input buffer
         for i in 0..<bufferSize {

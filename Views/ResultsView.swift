@@ -44,10 +44,10 @@ struct ResultsView: View {
 
                 VStack(spacing: 10) {
                     let totalBeats = model.totalBeats
-                    let totalAttempts = model.perfectHits + model.goodHits + model.missedHits + model.extraHits
+                    let attempts = model.perfectHits + model.goodHits + model.missedHits + model.extraHits
 
                     Text("Всего битов: \(totalBeats)")
-                    Text("Всего попыток: \(totalAttempts)")
+                    Text("Всего попыток: \(attempts)")
                     Text(String(format: "Точность: %.1f%%", accuracy))
                         .font(.title2)
                         .fontWeight(.bold)
@@ -362,18 +362,12 @@ struct SpectrogramView: View {
                 ForEach(model.userHits.indices, id: \.self) { index in
                     let hit = model.userHits[index]
                     let x = hit.beatPosition * geometry.size.width / CGFloat(model.totalBeats)
-                    let color: Color
-
-                    if hit.deviation <= 0.05 {
-                        color = .green  // Идеальное попадание
-                    } else if hit.deviation <= 0.15 {
-                        color = .blue   // Хорошее попадание
-                    } else {
-                        color = .orange // Неточное попадание
-                    }
+                    // Определяем цвет заранее
+                    let hitColor: Color = hit.deviation <= 0.05 ? .green : 
+                                       hit.deviation <= 0.15 ? .blue : .orange
 
                     Circle()
-                        .fill(color)
+                        .fill(hitColor)
                         .frame(width: 10, height: 10)
                         .position(x: x, y: geometry.size.height / 2 + 20)
                         .overlay(
