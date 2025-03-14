@@ -178,8 +178,11 @@ struct TrainingView: View {
             feedback = "Хорошо!"
             feedbackColor = .blue
         } else if model.missedHits > previousMissedHits {
-            feedback = "Мимо"
+            feedback = "Неточно"
             feedbackColor = .orange
+        } else if model.extraHits > 0 {
+            feedback = "Мимо"
+            feedbackColor = .red
         }
         
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {

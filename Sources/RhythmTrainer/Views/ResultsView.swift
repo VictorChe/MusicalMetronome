@@ -16,6 +16,7 @@ struct ResultsView: View {
                 ResultRow(label: "Хорошие попадания", value: model.goodHits, color: .blue)
                 ResultRow(label: "Неточные попадания", value: model.missedHits, color: .orange)
                 ResultRow(label: "Пропущенные биты", value: model.skippedBeats, color: .red)
+                ResultRow(label: "Ноты мимо", value: model.extraHits, color: .purple)
             }
             .padding()
             .background(Color(UIColor.systemBackground))
