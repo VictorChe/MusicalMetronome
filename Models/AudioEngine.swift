@@ -153,29 +153,31 @@ class AudioEngine: NSObject, ObservableObject {
     private func detectBeat(currentLevel: Double) {
         guard previousAudioLevels.count > 2 else { return }
 
-        // Снизим порог обнаружения значительно
+        // Снизим порог обнаружения до минимума
         let previousAverage = previousAudioLevels.dropLast().reduce(0, +) / Double(previousAudioLevels.count - 1)
         
-        // Сильно снизим порог обнаружения для улавливания даже слабых сигналов
-        let adjustedThreshold = beatDetectionThreshold * 0.3
+        // Почти полностью уберем порог, чтобы отлавливать даже незначительные изменения
+        let adjustedThreshold = beatDetectionThreshold * 0.1
         
-        // Проверяем либо скачок громкости, либо просто достаточную громкость
+        // Еще сильнее снизим порог минимальной громкости
         let isVolumeSpike = currentLevel > previousAverage + adjustedThreshold
-        let isLoudEnough = currentLevel > 0.05 // Снизим порог минимальной громкости
+        let isLoudEnough = currentLevel > 0.02 // Предельно низкий порог громкости
         
-        // Игнорируем проверку частот для повышения чувствительности
-        // let hasRelevantFrequencies = hasMusicalFrequencies()
-
         // Выводим подробную отладочную информацию
         print("Аудио уровень: \(currentLevel), средний: \(previousAverage), порог: \(adjustedThreshold)")
         
-        // Более простое условие обнаружения звука
+        // Оптимизируем время обнаружения, чтобы минимизировать задержку
         if isVolumeSpike || isLoudEnough {
             print("ОБНАРУЖЕН БИТ: уровень=\(currentLevel), порог=\(previousAverage + adjustedThreshold)")
             isBeatDetected = true
-            onAudioDetected?(currentLevel)
+            
+            // Немедленно уведомляем о событии
+            DispatchQueue.main.async {
+                self.onAudioDetected?(currentLevel)
+            }
 
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            // Сокращаем время "тишины" после обнаружения звука
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 self.isBeatDetected = false
             }
         }

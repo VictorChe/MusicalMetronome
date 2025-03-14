@@ -194,17 +194,7 @@ class MetronomeModel: ObservableObject {
         
         let currentTime = Date().timeIntervalSince1970
         
-        // Снижаем минимальную громкость для регистрации удара
-        let intensityThreshold = 0.04 // Снижен с 0.1 до 0.04
-        if intensity < intensityThreshold {
-            // Сообщаем о слишком тихом звуке, но не выходим полностью из функции
-            print("Звук слишком тихий: \(intensity), нужно минимум \(intensityThreshold)")
-            // Если звук совсем тихий, выходим
-            if intensity < 0.01 {
-                return
-            }
-        }
-        
+        // Полностью убираем порог интенсивности
         print("Обнаружен аудиосигнал с интенсивностью: \(intensity)")
         
         // Получаем текущее время с момента начала
@@ -212,7 +202,12 @@ class MetronomeModel: ObservableObject {
             print("Ошибка: startTime не установлено")
             return 
         }
-        let actualElapsed = Date().timeIntervalSince(startTime)
+        
+        // Вычисляем задержку обработки аудио (примерно 50-100 мс)
+        let audioProcessingDelay = 0.075 // 75 мс - ориентировочная задержка захвата и обработки аудио
+        
+        // Корректируем фактическое время с учетом задержки обработки аудио
+        let actualElapsed = Date().timeIntervalSince(startTime) - audioProcessingDelay
         
         // Рассчитываем, на каком мы сейчас бите и каково отклонение
         let exactBeatPosition = actualElapsed / beatInterval
@@ -221,12 +216,12 @@ class MetronomeModel: ObservableObject {
         // Отклонение в долях бита (от 0 до 0.5)
         let beatDeviation = abs(exactBeatPosition - nearestBeatNumber)
         
-        // Увеличиваем допустимое отклонение для режима микрофона
-        let microAdjustment = 1.5 // Увеличиваем пороги в 1.5 раза
+        // Значительно увеличиваем допустимое отклонение для режима микрофона
+        let microAdjustment = 3.0 // Увеличиваем пороги в 3 раза
         
-        // Проверяем минимальный интервал между нажатиями
-        // Использовать более короткий интервал для режима микрофона
-        if currentTime - lastHitTime < (minimumTimeBetweenHits * 0.8) {
+        // Проверяем минимальный интервал между нажатиями 
+        // Ещё больше уменьшаем интервал для режима микрофона
+        if currentTime - lastHitTime < (minimumTimeBetweenHits * 0.5) {
             print("Слишком частое обнаружение звука: пропущено \(currentTime - lastHitTime)s")
             return
         }
@@ -240,13 +235,17 @@ class MetronomeModel: ObservableObject {
         lastHitTime = currentTime
         lastHitBeat = Int(nearestBeatNumber)
         
-        // Определяем тип попадания с учетом увеличенных порогов для микрофона
+        // Определяем тип попадания с учетом сильно увеличенных порогов для микрофона
         print("Отклонение в долях бита: \(beatDeviation)")
         
-        // Для режима микрофона увеличиваем пороги
+        // Для режима микрофона сильно увеличиваем пороги
         let adjustedPerfectThreshold = perfectThresholdRatio * microAdjustment
         let adjustedGoodThreshold = goodThresholdRatio * microAdjustment 
         let adjustedPoorThreshold = poorThresholdRatio * microAdjustment
+        
+        // Печатаем подробную отладочную информацию
+        print("Оригинальные пороги - Идеальное: \(perfectThresholdRatio), Хорошее: \(goodThresholdRatio), Неточное: \(poorThresholdRatio)")
+        print("Скорректированные пороги - Идеальное: \(adjustedPerfectThreshold), Хорошее: \(adjustedGoodThreshold), Неточное: \(adjustedPoorThreshold)")
         
         if beatDeviation <= adjustedPerfectThreshold {
             perfectHits += 1
