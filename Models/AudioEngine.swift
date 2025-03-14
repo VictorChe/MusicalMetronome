@@ -38,12 +38,11 @@ class AudioEngine: NSObject, ObservableObject {
     }
 
     func requestPermission() {
-        Task {
-            let granted = await AVAudioApplication.requestRecordPermission()
+        AVAudioSession.sharedInstance().requestRecordPermission { [weak self] granted in
             DispatchQueue.main.async {
-                self.permissionGranted = granted
+                self?.permissionGranted = granted
                 if granted {
-                    self.setupAudioEngine()
+                    self?.setupAudioEngine()
                 }
             }
         }
