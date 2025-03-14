@@ -1,4 +1,4 @@
-modules = ["swift", "swift-5.9"]
+modules = ["swift-5.8"]
 
 [nix]
 channel = "stable-24_05"
