@@ -162,6 +162,7 @@ struct TrainingView: View {
         let previousPerfectHits = model.perfectHits
         let previousGoodHits = model.goodHits
         let previousMissedHits = model.missedHits
+        let previousExtraHits = model.extraHits
         
         if model.mode == .tap {
             model.handleTap()
@@ -171,7 +172,10 @@ struct TrainingView: View {
         
         showFeedback = true
         
-        if model.perfectHits > previousPerfectHits {
+        if model.extraHits > previousExtraHits {
+            feedback = "Мимо"
+            feedbackColor = .red
+        } else if model.perfectHits > previousPerfectHits {
             feedback = "Идеально!"
             feedbackColor = .green
         } else if model.goodHits > previousGoodHits {
@@ -180,9 +184,6 @@ struct TrainingView: View {
         } else if model.missedHits > previousMissedHits {
             feedback = "Неточно"
             feedbackColor = .orange
-        } else if model.extraHits > 0 {
-            feedback = "Мимо"
-            feedbackColor = .red
         }
         
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {

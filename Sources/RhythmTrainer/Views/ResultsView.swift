@@ -29,7 +29,7 @@ struct ResultsView: View {
                 
                 let totalBeats = model.totalBeats
                 let totalHits = model.perfectHits + model.goodHits + model.missedHits
-                let accuracy = totalBeats > 0 ? Double(model.perfectHits + model.goodHits) / Double(totalBeats) * 100 : 0
+                let accuracy = totalBeats > 0 ? Double(model.perfectHits + model.goodHits) / Double(totalBeats + model.extraHits) * 100 : 0
                 
                 Text("Всего битов: \(totalBeats)")
                 Text("Всего попаданий: \(totalHits)")
