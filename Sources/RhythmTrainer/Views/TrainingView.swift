@@ -1,14 +1,15 @@
+
 import SwiftUI
 import AVFoundation
 
 struct TrainingView: View {
     @ObservedObject var model: MetronomeModel
     @ObservedObject var audioEngine = AudioEngine()
+    @Environment(\.dismiss) private var dismiss
     @State private var showResults = false
     @State private var feedback = ""
     @State private var feedbackColor = Color.gray
     @State private var showFeedback = false
-    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         GeometryReader { _ in
@@ -206,31 +207,23 @@ struct TrainingView: View {
         let previousPerfectHits = model.perfectHits
         let previousGoodHits = model.goodHits
         let previousMissedHits = model.missedHits
-
-        if model.mode == .microphone {
-            model.handleAudioInput(intensity: intensity)
-        } else {
-            model.handleTap()
-        }
-
+        
+        model.handleBeat(intensity: intensity)
+        
         if model.perfectHits > previousPerfectHits {
-            showFeedback(message: "Идеально! ⭐️", color: .green)
+            feedback = "Идеально!"
+            feedbackColor = .green
         } else if model.goodHits > previousGoodHits {
-            showFeedback(message: "Хорошо! 👍", color: .blue)
+            feedback = "Хорошо!"
+            feedbackColor = .blue
         } else if model.missedHits > previousMissedHits {
-            showFeedback(message: "Мимо 😕", color: .orange)
+            feedback = "Мимо"
+            feedbackColor = .orange
         }
-    }
-
-    private func showFeedback(message: String, color: Color) {
-        feedback = message
-        feedbackColor = color
+        
         showFeedback = true
-
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            withAnimation {
-                showFeedback = false
-            }
+            showFeedback = false
         }
     }
 
@@ -238,11 +231,5 @@ struct TrainingView: View {
         let minutes = Int(seconds) / 60
         let secs = Int(seconds) % 60
         return String(format: "%d:%02d", minutes, secs)
-    }
-}
-
-struct TrainingView_Previews: PreviewProvider {
-    static var previews: some View {
-        TrainingView(model: MetronomeModel())
     }
 }
