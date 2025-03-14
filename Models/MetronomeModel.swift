@@ -160,14 +160,14 @@ class MetronomeModel: ObservableObject {
         let deviationRatio = deviation / beatInterval
         print("Отклонение: \(deviationRatio)")
 
-        // Четкие границы для каждого типа попадания
+        // Четкие границы для каждого типа попадания - используем строгие неравенства
         if deviationRatio <= perfectThresholdRatio {
             perfectHits += 1
             print("Идеальное попадание: \(deviationRatio)")
         } else if deviationRatio <= goodThresholdRatio {
             goodHits += 1
             print("Хорошее попадание: \(deviationRatio)")
-        } else if deviationRatio <= 0.3 {
+        } else if deviationRatio <= poorThresholdRatio {
             missedHits += 1
             print("Неточное попадание: \(deviationRatio)")
         } else {
