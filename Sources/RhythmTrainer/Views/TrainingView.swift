@@ -74,17 +74,6 @@ struct TrainingView: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
 
-                VStack(spacing: 8) {
-                    statsRow(icon: "star.fill", text: "Идеальные", count: model.perfectHits, color: .green)
-                    statsRow(icon: "star", text: "Хорошие", count: model.goodHits, color: .blue)
-                    statsRow(icon: "star.slash", text: "Неточные", count: model.missedHits, color: .orange)
-                }
-                .padding()
-                .background(Color(UIColor.secondarySystemBackground))
-                .cornerRadius(10)
-
-                Spacer()
-
                 Circle()
                     .fill(Color.blue.opacity(0.7))
                     .frame(width: 200, height: 200)
@@ -126,7 +115,7 @@ struct TrainingView: View {
                     }
                     .padding(.vertical)
                 } else {
-                    AudioLevelView(level: audioEngine.audioLevel * 10)
+                    AudioLevelView(level: audioEngine.audioLevel)
                         .frame(height: 100)
                         .padding(.vertical)
                 }
@@ -169,26 +158,6 @@ struct TrainingView: View {
         }
     }
 
-    func statsRow(icon: String, text: String, count: Int, color: Color) -> some View {
-        HStack {
-            Image(systemName: icon)
-                .foregroundColor(color)
-            Text(text)
-            Spacer()
-            Text("\(count)")
-                .font(.headline)
-        }
-    }
-
-    func setupAudioEngine() {
-        if model.mode == .microphone {
-            audioEngine.startMonitoring()
-            audioEngine.onAudioDetected = { intensity in
-                handleUserAction()
-            }
-        }
-    }
-
     func handleUserAction() {
         let previousPerfectHits = model.perfectHits
         let previousGoodHits = model.goodHits
@@ -211,6 +180,15 @@ struct TrainingView: View {
         
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             showFeedback = false
+        }
+    }
+
+    func setupAudioEngine() {
+        if model.mode == .microphone {
+            audioEngine.startMonitoring()
+            audioEngine.onAudioDetected = { intensity in
+                handleUserAction()
+            }
         }
     }
 
