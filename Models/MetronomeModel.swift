@@ -27,8 +27,9 @@ class MetronomeModel: ObservableObject {
     private var startTime: Date?
 
     // Пороги для попаданий (в долях от интервала между битами)
-    private let perfectThresholdRatio = 0.05 // Reduced for more precise perfect hits
-    private let goodThresholdRatio = 0.15 // Reduced for more precise good hits
+    private let perfectThresholdRatio = 0.05 // 5% от интервала для идеальных попаданий
+    private let goodThresholdRatio = 0.15 // 15% от интервала для хороших попаданий
+    private let poorThresholdRatio = 0.3 // 30% от интервала для неточных попаданий
 
     // Защита от множественных попаданий
     private var lastHitBeat: Int = -1
@@ -159,6 +160,7 @@ class MetronomeModel: ObservableObject {
         let deviationRatio = deviation / beatInterval
         print("Отклонение: \(deviationRatio)")
 
+        // Четкие границы для каждого типа попадания
         if deviationRatio <= perfectThresholdRatio {
             perfectHits += 1
             print("Идеальное попадание: \(deviationRatio)")
@@ -172,8 +174,6 @@ class MetronomeModel: ObservableObject {
             extraHits += 1
             print("Нота мимо: \(deviationRatio)")
         }
-
-        print("Статистика - Идеальные: \(perfectHits), Хорошие: \(goodHits), Неточные: \(missedHits), Мимо: \(extraHits)")
 
         print("Статистика - Идеальные: \(perfectHits), Хорошие: \(goodHits), Неточные: \(missedHits), Мимо: \(extraHits)")
     }
