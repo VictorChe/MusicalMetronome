@@ -5,7 +5,7 @@ import AVFoundation
 struct TrainingView: View {
     @ObservedObject var model: MetronomeModel
     @ObservedObject var audioEngine = AudioEngine()
-    @Environment(\.dismiss) private var dismiss
+    @Environment(\.dismiss) var dismiss
     @State private var showResults = false
     @State private var feedback = ""
     @State private var feedbackColor = Color.gray
@@ -38,7 +38,7 @@ struct TrainingView: View {
         }
     }
 
-    private var countdownView: some View {
+    var countdownView: some View {
         VStack(spacing: 30) {
             Text("Приготовьтесь...")
                 .font(.title)
@@ -60,7 +60,7 @@ struct TrainingView: View {
         }
     }
 
-    private var trainingView: some View {
+    var trainingView: some View {
         ScrollView {
             VStack(spacing: 20) {
                 ProgressView(value: model.progress)
@@ -75,32 +75,9 @@ struct TrainingView: View {
                 .foregroundColor(.secondary)
 
                 VStack(spacing: 8) {
-                    HStack {
-                        Image(systemName: "star.fill")
-                            .foregroundColor(.green)
-                        Text("Идеальные")
-                        Spacer()
-                        Text("\(model.perfectHits)")
-                            .font(.headline)
-                    }
-
-                    HStack {
-                        Image(systemName: "star")
-                            .foregroundColor(.blue)
-                        Text("Хорошие")
-                        Spacer()
-                        Text("\(model.goodHits)")
-                            .font(.headline)
-                    }
-
-                    HStack {
-                        Image(systemName: "star.slash")
-                            .foregroundColor(.orange)
-                        Text("Неточные")
-                        Spacer()
-                        Text("\(model.missedHits)")
-                            .font(.headline)
-                    }
+                    statsRow(icon: "star.fill", text: "Идеальные", count: model.perfectHits, color: .green)
+                    statsRow(icon: "star", text: "Хорошие", count: model.goodHits, color: .blue)
+                    statsRow(icon: "star.slash", text: "Неточные", count: model.missedHits, color: .orange)
                 }
                 .padding()
                 .background(Color(UIColor.secondarySystemBackground))
@@ -170,7 +147,7 @@ struct TrainingView: View {
         }
     }
 
-    private var finishedView: some View {
+    var finishedView: some View {
         VStack(spacing: 30) {
             Text("Тренировка завершена!")
                 .font(.title)
@@ -190,13 +167,24 @@ struct TrainingView: View {
         }
     }
 
-    private func setupAudioEngine() {
+    func statsRow(icon: String, text: String, count: Int, color: Color) -> some View {
+        HStack {
+            Image(systemName: icon)
+                .foregroundColor(color)
+            Text(text)
+            Spacer()
+            Text("\(count)")
+                .font(.headline)
+        }
+    }
+
+    func setupAudioEngine() {
         if model.mode == .microphone {
             audioEngine.startMonitoring()
         }
     }
 
-    private func handleUserAction() {
+    func handleUserAction() {
         let previousPerfectHits = model.perfectHits
         let previousGoodHits = model.goodHits
         let previousMissedHits = model.missedHits
@@ -224,9 +212,9 @@ struct TrainingView: View {
         }
     }
 
-    private func formatTime(_ seconds: Double) -> String {
+    func formatTime(_ seconds: Double) -> String {
         let minutes = Int(seconds) / 60
         let secs = Int(seconds) % 60
-        return String(format: "%d:%02d", minutes, secs)
+        String(format: "%d:%02d", minutes, secs)
     }
 }
