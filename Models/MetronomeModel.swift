@@ -141,12 +141,14 @@ class MetronomeModel: ObservableObject {
         // Проверяем минимальный интервал между нажатиями
         if currentTime - lastHitTime < minimumTimeBetweenHits {
             extraHits += 1
+            print("Слишком частое нажатие")
             return
         }
 
         // Проверяем, не было ли уже попадания на этот бит
         if Int(nearestBeat) == lastHitBeat {
             extraHits += 1
+            print("Повторное нажатие на тот же бит")
             return
         }
 
@@ -155,21 +157,23 @@ class MetronomeModel: ObservableObject {
 
         // Определяем тип попадания
         let deviationRatio = deviation / beatInterval
+        print("Отклонение: \(deviationRatio)")
 
-        // Определяем тип попадания на основе отклонения
         if deviationRatio <= perfectThresholdRatio {
-            print("Идеальное попадание: \(deviationRatio)")
             perfectHits += 1
+            print("Идеальное попадание: \(deviationRatio)")
         } else if deviationRatio <= goodThresholdRatio {
-            print("Хорошее попадание: \(deviationRatio)")
             goodHits += 1
-        } else if deviationRatio <= 0.3 { // Максимальное отклонение 30%
-            print("Неточное попадание: \(deviationRatio)")
+            print("Хорошее попадание: \(deviationRatio)")
+        } else if deviationRatio <= 0.3 {
             missedHits += 1
+            print("Неточное попадание: \(deviationRatio)")
         } else {
-            print("Нота мимо: \(deviationRatio)")
             extraHits += 1
+            print("Нота мимо: \(deviationRatio)")
         }
+
+        print("Статистика - Идеальные: \(perfectHits), Хорошие: \(goodHits), Неточные: \(missedHits), Мимо: \(extraHits)")
 
         print("Статистика - Идеальные: \(perfectHits), Хорошие: \(goodHits), Неточные: \(missedHits), Мимо: \(extraHits)")
     }
