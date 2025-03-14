@@ -280,11 +280,28 @@ class AudioEngine: NSObject, ObservableObject {
         return false
     }
 
-    // Add this function to check for likely metronome echoes.  This is a placeholder and needs more sophisticated logic.
+    // Время последнего клика метронома
+    private var lastMetronomeClickTime: Date?
+    private let metronomeEchoWindow: TimeInterval = 0.2 // 200 мс окно для фильтрации эха
+    
+    // Метод, вызываемый метрономом при воспроизведении клика
+    func notifyMetronomeClick() {
+        lastMetronomeClickTime = Date()
+        print("Получено уведомление о клике метронома")
+    }
+    
+    // Метод для определения, является ли обнаруженный звук вероятным эхом метронома
     private func isLikelyMetronomeEcho() -> Bool {
-        // Implement logic to detect if the current audio level is likely an echo of the metronome.
-        // This might involve checking for similar patterns in recent audio levels or frequency analysis.
-        // This is a placeholder, replace with actual logic.
+        guard let lastClick = lastMetronomeClickTime else { return false }
+        
+        let timeSinceLastClick = Date().timeIntervalSince(lastClick)
+        let isWithinEchoWindow = timeSinceLastClick < metronomeEchoWindow
+        
+        if isWithinEchoWindow {
+            print("Обнаружено вероятное эхо метронома: \(timeSinceLastClick) сек после клика")
+            return true
+        }
+        
         return false
     }
 }

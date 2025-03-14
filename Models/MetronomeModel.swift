@@ -137,7 +137,10 @@ class MetronomeModel: ObservableObject {
         audioPlayer?.play()
         
         // Уведомляем аудио-движок о клике метронома для фильтрации эха
-        audioEngine?.notifyMetronomeClick()
+        if let audioEngine = audioEngine {
+            audioEngine.notifyMetronomeClick()
+            print("Отправлено уведомление о клике метронома")
+        }
     }
 
     func handleTap() {
