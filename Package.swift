@@ -1,5 +1,5 @@
 
-// swift-tools-version:5.7
+// swift-tools-version:5.5
 import PackageDescription
 
 let package = Package(
@@ -8,21 +8,21 @@ let package = Package(
         .macOS(.v12)
     ],
     products: [
-        .executable(
-            name: "RhythmTrainer",
-            targets: ["RhythmTrainer"]
-        )
+        .executable(name: "RhythmTrainer", targets: ["RhythmTrainer"])
     ],
     dependencies: [],
     targets: [
         .executableTarget(
             name: "RhythmTrainer",
             dependencies: [],
-            path: "Sources/RhythmTrainer"
+            path: ".",
+            exclude: ["Tests", ".build", "attached_assets", ".gitignore", ".replit", "README.md", "generated-icon.png"],
+            sources: ["Models", "Views", "Sources/RhythmTrainer"]
         ),
         .testTarget(
             name: "RhythmTrainerTests",
-            dependencies: ["RhythmTrainer"]
+            dependencies: ["RhythmTrainer"],
+            path: "Tests"
         )
     ]
 )

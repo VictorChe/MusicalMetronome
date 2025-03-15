@@ -1,10 +1,15 @@
-
+// This file is intentionally empty since we use @main attribute in RhythmTrainerApp.swift
 import SwiftUI
 
-// Экспортируем необходимые компоненты
-@_exported import struct SwiftUI.Text
-@_exported import struct SwiftUI.Button
-@_exported import struct SwiftUI.VStack
+@main
+struct RhythmTrainerApp: App {
+    var body: some Scene {
+        WindowGroup {
+            ContentView()
+        }
+    }
+}
+import SwiftUI
 
 @main
 struct RhythmTrainerApp {
