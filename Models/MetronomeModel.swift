@@ -313,7 +313,7 @@ class MetronomeModel: ObservableObject {
 
         // Компенсация системной задержки
         let systemLatency = 0.02 // 20ms базовая системная задержка
-        let _ = systemLatency + (latencyCompensation / 1000.0) // totalLatencyCompensation is unused
+        // Убрана неиспользуемая переменная
 
         // Получаем текущее время с момента начала
         guard let startTime = startTime else {
