@@ -1,5 +1,5 @@
-
 import SwiftUI
+import Foundation
 import AVFoundation
 
 struct TrainingView: View {
@@ -92,7 +92,7 @@ struct TrainingView: View {
 
                 Text("Бит: \(model.currentBeat) / \(model.totalBeats)")
                     .font(.headline)
-                
+
                 // Добавление ритмических фигур
                 RhythmPatternsView(model: model, onPatternTapped: { index in
                     // При нажатии на паттерн, можно добавить дополнительную логику,
@@ -100,7 +100,7 @@ struct TrainingView: View {
                 })
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 10)
-                
+
                 // Вызов обновления паттерна, если изменился текущий бит
                 // и мы должны обновить паттерн
                 .onChange(of: model.currentBeat) { newBeat in
@@ -176,7 +176,7 @@ struct TrainingView: View {
                         Text("Уровень звука: \(Int(audioEngine.audioLevel * 100))%")
                             .font(.caption)
                             .foregroundColor(audioEngine.isBeatDetected ? .green : .gray)
-                        
+
                         // Улучшенная спектограмма
                         AudioLevelView(
                             level: audioEngine.audioLevel,
@@ -189,14 +189,14 @@ struct TrainingView: View {
                         .frame(height: 80)
                         .background(Color.black.opacity(0.05))
                         .cornerRadius(8)
-                        
+
                         // Индикатор обнаружения звука
                         HStack(spacing: 10) {
                             Circle()
                                 .fill(audioEngine.isBeatDetected ? Color.green : Color.gray.opacity(0.3))
                                 .frame(width: 12, height: 12)
                                 .animation(.easeInOut(duration: 0.2), value: audioEngine.isBeatDetected)
-                            
+
                             Text(audioEngine.isBeatDetected ? "Звук обнаружен!" : "Ожидание звука...")
                                 .font(.caption)
                                 .foregroundColor(audioEngine.isBeatDetected ? .green : .gray)
@@ -342,34 +342,34 @@ struct TrainingView: View {
         let secs = Int(seconds) % 60
         return String(format: "%d:%02d", mins, secs)
     }
-    
+
     // Функция для получения информации о попаданиях пользователя для визуализации
     func getUserHits() -> [(time: Double, accuracy: Double)] {
         // В реальном коде здесь будут данные о фактических попаданиях пользователя
         // Для примера создаем тестовые данные на основе статистики
         var hits: [(time: Double, accuracy: Double)] = []
-        
+
         // Идеальные попадания (с малым отклонением)
         for _ in 0..<model.perfectHits {
             let time = Double.random(in: 1...Double(model.currentBeat))
             let accuracy = Double.random(in: 0...0.05)
             hits.append((time: time, accuracy: accuracy))
         }
-        
+
         // Хорошие попадания (с средним отклонением)
         for _ in 0..<model.goodHits {
             let time = Double.random(in: 1...Double(model.currentBeat))
             let accuracy = Double.random(in: 0.05...0.15)
             hits.append((time: time, accuracy: accuracy))
         }
-        
+
         // Неточные попадания (с большим отклонением)
         for _ in 0..<model.missedHits {
             let time = Double.random(in: 1...Double(model.currentBeat))
             let accuracy = Double.random(in: 0.15...0.3)
             hits.append((time: time, accuracy: accuracy))
         }
-        
+
         // В будущем здесь будут реальные данные из модели метронома
         return hits
     }

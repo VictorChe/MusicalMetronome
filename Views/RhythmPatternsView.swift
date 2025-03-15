@@ -1,5 +1,6 @@
 
 import SwiftUI
+import Foundation
 
 struct RhythmPatternsView: View {
     @ObservedObject var model: MetronomeModel

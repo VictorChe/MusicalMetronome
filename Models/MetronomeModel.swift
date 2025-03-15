@@ -2,7 +2,7 @@
 import Foundation
 import AVFoundation
 
-class MetronomeModel: ObservableObject {
+public class MetronomeModel: ObservableObject {
     // Настройки метронома
     @Published var tempo: Double = 90
     @Published var duration: Double = 20
@@ -57,13 +57,13 @@ class MetronomeModel: ObservableObject {
         return min(Date().timeIntervalSince(startTime) / duration, 1.0)
     }
 
-    enum TrainingMode: String, CaseIterable, Identifiable {
+    public enum TrainingMode: String, CaseIterable, Identifiable {
         case tap = "Тапы"
         case microphone = "Микрофон"
-        var id: String { self.rawValue }
+        public var id: String { self.rawValue }
     }
 
-    enum RhythmPattern: String, CaseIterable, Identifiable {
+    public enum RhythmPattern: String, CaseIterable, Identifiable {
         case quarter = "Четверть"
         case quarterRest = "Четверть пауза"
         case eighthPair = "Две восьмых"
@@ -71,11 +71,11 @@ class MetronomeModel: ObservableObject {
         case restEighthNote = "Пауза + восьмая"
         case eighthNoteRest = "Восьмая + пауза"
 
-        var id: String { self.rawValue }
+        public var id: String { self.rawValue }
 
         // Возвращает массив моментов времени для ноты в долях от целой ноты
         // Например, для двух восьмых это будет [0, 0.5]
-        var noteTimings: [Double] {
+        public var noteTimings: [Double] {
             switch self {
             case .quarter:
                 return [0]
@@ -93,7 +93,7 @@ class MetronomeModel: ObservableObject {
         }
 
         // Возвращает символы для отображения
-        var symbols: [String] {
+        public var symbols: [String] {
             switch self {
             case .quarter:
                 return ["♩"]
@@ -129,7 +129,7 @@ class MetronomeModel: ObservableObject {
         }
     }
 
-    init() {
+    public init() {
         setupAudio()
     }
 
