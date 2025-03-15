@@ -35,6 +35,7 @@ struct BarsView: View {
             return Color.gray.opacity(0.3)
         }
     }
+    }
 }
 
 struct AudioLevelView: View {
