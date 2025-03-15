@@ -40,7 +40,7 @@ args = "swift package resolve"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "swift build"
+args = "swift build -Xswiftc \"-sdk\" -Xswiftc \"`xcrun --sdk iphonesimulator --show-sdk-path`\" -Xswiftc \"-target\" -Xswiftc \"x86_64-apple-ios15.0-simulator\""
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"

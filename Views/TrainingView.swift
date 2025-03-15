@@ -2,6 +2,8 @@
 import SwiftUI
 import AVFoundation
 
+import SwiftUI
+
 struct TrainingView: View {
     @ObservedObject var model: MetronomeModel
     @ObservedObject var audioEngine = AudioEngine()
@@ -108,7 +110,7 @@ struct TrainingView: View {
                     if newBeat > 0 && (newBeat % 4 == 0 || lastUpdatedPatternIndex == -1) {
                         let randomIndex = Int.random(in: 0..<model.currentPatterns.count)
                         lastUpdatedPatternIndex = randomIndex
-                        model.updateRandomPattern(at: randomIndex)
+                        model.updateRandomPattern(at: randomIndex)ateRandomPattern(at: randomIndex)
                     }
                 }
 

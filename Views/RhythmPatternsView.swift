@@ -1,35 +1,5 @@
+
 import SwiftUI
-
-struct RhythmPatternsView: View {
-    @ObservedObject var model: MetronomeModel
-    var onPatternTapped: (Int) -> Void
-
-    var body: some View {
-        VStack(spacing: 10) {
-            Text("Ритмические фигуры:")
-                .font(.headline)
-
-            LazyVGrid(columns: [
-                GridItem(.flexible()),
-                GridItem(.flexible())
-            ], spacing: 10) {
-                ForEach(0..<model.currentPatterns.count, id: \.self) { index in
-                    RhythmPatternCard(
-                        pattern: model.currentPatterns[index],
-                        isActive: index == model.currentBeat % 4
-                    )
-                    .frame(height: 80)
-                    .onTapGesture {
-                        onPatternTapped(index)
-                    }
-                }
-            }
-        }
-        .padding()
-        .background(Color.gray.opacity(0.1))
-        .cornerRadius(10)
-    }
-}
 
 struct RhythmPatternCard: View {
     let pattern: MetronomeModel.RhythmPattern
@@ -60,6 +30,37 @@ struct RhythmPatternCard: View {
             RoundedRectangle(cornerRadius: 10)
                 .stroke(isActive ? Color.blue : Color.gray.opacity(0.2), lineWidth: 2)
         )
+    }
+}
+
+struct RhythmPatternsView: View {
+    @ObservedObject var model: MetronomeModel
+    var onPatternTapped: (Int) -> Void
+
+    var body: some View {
+        VStack(spacing: 10) {
+            Text("Ритмические фигуры:")
+                .font(.headline)
+
+            LazyVGrid(columns: [
+                GridItem(.flexible()),
+                GridItem(.flexible())
+            ], spacing: 10) {
+                ForEach(0..<model.currentPatterns.count, id: \.self) { index in
+                    RhythmPatternCard(
+                        pattern: model.currentPatterns[index],
+                        isActive: index == model.currentBeat % 4
+                    )
+                    .frame(height: 80)
+                    .onTapGesture {
+                        onPatternTapped(index)
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(Color.gray.opacity(0.1))
+        .cornerRadius(10)
     }
 }
 
