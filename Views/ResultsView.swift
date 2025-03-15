@@ -59,8 +59,9 @@ struct ResultsView: View {
                     Button {
                         // Повторить тренировку с теми же настройками
                         model.resetResults()
+                        // Увеличиваем задержку, чтобы избежать двойного клика метронома
                         dismiss()
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
                             model.startMetronome()
                         }
                     } label: {
@@ -92,6 +93,11 @@ struct ResultsView: View {
                     }
 
                     Button {
+                        // Сначала останавливаем метроном, если он еще активен
+                        if model.isRunning {
+                            model.stopMetronome()
+                        }
+                        // Полностью закрываем все экраны и возвращаемся на главный
                         dismiss()
                     } label: {
                         HStack {

@@ -31,12 +31,14 @@ struct TrainingView: View {
                 }
             }
             .navigationBarBackButtonHidden(model.isRunning || model.isCountdown)
-            .fullScreenCover(isPresented: $showResults, onDismiss: {
-                if !model.isRunning {
-                    dismiss()
-                }
-            }) {
+            .fullScreenCover(isPresented: $showResults) {
                 ResultsView(model: model)
+                    .onDisappear {
+                        // Проверяем, что тренировка действительно завершена
+                        if !model.isRunning && !model.isCountdown {
+                            dismiss()
+                        }
+                    }
             }
         }
     }
@@ -167,12 +169,6 @@ struct TrainingView: View {
             Text("Тренировка завершена!")
                 .font(.title)
                 .fontWeight(.bold)
-                .onAppear {
-                    // Автоматически показываем результаты при завершении тренировки
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        showResults = true
-                    }
-                }
 
             Button {
                 showResults = true
@@ -206,7 +202,7 @@ struct TrainingView: View {
             do {
                 try AVAudioSession.sharedInstance().setCategory(.playAndRecord, mode: .default)
                 try AVAudioSession.sharedInstance().setActive(true)
-                
+
                 audioEngine.startMonitoring()
                 audioEngine.onAudioDetected = { intensity in
                     handleUserAction()

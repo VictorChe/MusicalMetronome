@@ -127,6 +127,10 @@ class MetronomeModel: ObservableObject {
         timer?.invalidate()
         timer = nil
         calculateSkippedBeats()
+        
+        // Очищаем состояние аудио после завершения
+        audioPlayer?.stop()
+        lastDetectedAudioTime = nil
     }
 
     // Ссылка на аудио-движок для уведомления о кликах

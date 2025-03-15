@@ -43,7 +43,7 @@ struct AudioLevelView: View {
     var body: some View {
         VStack(spacing: 8) {
             BarsView(level: level)
-            
+
             WaveformView(level: level)
                 .frame(height: 60)
                 .padding(.vertical, 5)
@@ -65,99 +65,60 @@ struct AudioLevelView_Previews: PreviewProvider {
 
 struct WaveformView: View {
     var level: Double
-    @State private var phase = 0.0
-    
-    let timer = Timer.publish(every: 0.05, on: .main, in: .common).autoconnect()
-    
-    private func calculateWaveY(x: CGFloat, width: CGFloat, midHeight: CGFloat, amplitude: CGFloat) -> CGFloat {
-        let relativeX = x / width
-        let frequency = 10.0
-        
-        let sin1 = sin(relativeX * .pi * 2 * frequency + phase)
-        let sin2 = sin(relativeX * .pi * 2 * frequency * 0.5 + phase * 1.5)
-        let combinedSin = sin1 * 0.7 + sin2 * 0.3
-        
-        return midHeight + CGFloat(combinedSin) * amplitude
-    }
-    
-    private func createWavePath(size: CGSize) -> Path {
-        let width = size.width
-        let height = size.height
-        let midHeight = height / 2
-        let amplitude = CGFloat(level * height * 0.8)
-        
-        var path = Path()
-        path.move(to: CGPoint(x: 0, y: midHeight))
-        
-        for x in stride(from: 0, to: width, by: 1) {
-            let y = calculateWaveY(x: x, width: width, midHeight: midHeight, amplitude: amplitude)
-            path.addLine(to: CGPoint(x: x, y: y))
-        }
-        
-        return path
-    }
-    
+    @State private var phase: CGFloat = 0
+
     var body: some View {
-        TimelineView(.animation) { timeline in
+        TimelineView(.animation) { _ in
             Canvas { context, size in
                 let width = size.width
                 let height = size.height
                 let midHeight = height / 2
-                let amplitude = CGFloat(level * height * 0.8)
-                let path = createWavePath(size: size)
-                
-                let highlightPosition = CGPoint(
-                    x: width * 0.5, 
-                    y: midHeight + CGFloat(sin(phase * 2)) * amplitude
-                )
-                
-                let colors: [Color] = [.blue, .green, level > 0.5 ? .orange : .green, level > 0.8 ? .red : .orange]
+
+                // Создаем градиент
+                let colors = [Color.blue, Color.purple, Color.pink]
                 let gradient = Gradient(colors: colors)
-                let linearGradient = LinearGradient(
-                    gradient: gradient,
-                    startPoint: UnitPoint(x: 0, y: 0.5),
-                    endPoint: UnitPoint(x: 1, y: 0.5)
-                )
-                
-                context.stroke(
-                    path,
-                    with: .conicGradient(
-                        gradient,
-                        center: CGPoint(x: width/2, y: midHeight),
-                        angle: .degrees(0)
-                    ),
-                    style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round)
-                )
-                
-                if level > 0.1 {
-                    context.fill(
-                        Path(ellipseIn: CGRect(x: highlightPosition.x - 5, y: highlightPosition.y - 5, width: 10, height: 10)),
-                        with: .color(level > 0.5 ? .orange : .green)
-                    )
-                }
-            }
-            .onReceive(timer) { _ in
-                phase += 0.1
-                if phase > .pi * 2 {
+
+                // Создаем путь для волны
+                var path = Path()
+                path.move(to: CGPoint(x: 0, y: midHeight))
+
+                // Обновляем фазу для создания анимации движения
+                phase -= 2
+                if phase <= -width {
                     phase = 0
                 }
+
+                // Рисуем волну
+                let waves = 3 // Количество волн
+                let amplitude = midHeight * min(CGFloat(level) * 0.8 + 0.2, 0.8) // Высота волны зависит от уровня звука
+
+                for x in stride(from: 0, to: width, by: 1) {
+                    let relativeX = x / width
+                    let sine = sin((relativeX * .pi * 2 * CGFloat(waves)) + phase / 20)
+                    let y = midHeight + sine * amplitude
+                    path.addLine(to: CGPoint(x: x, y: y))
+                }
+
+                // Завершаем путь
+                path.addLine(to: CGPoint(x: width, y: midHeight))
+
+                // Рисуем волну с градиентом
+                context.stroke(
+                    path,
+                    with: .color(Color.blue.opacity(0.7)),
+                    style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round)
+                )
             }
-            .drawingGroup()
         }
-        .background(Color.black.opacity(0.05))
+        .background(Color.gray.opacity(0.1))
         .cornerRadius(10)
     }
 }
 
-struct AudioLevelView_Previews_2: PreviewProvider {
+struct BarsView_Previews: PreviewProvider {
     static var previews: some View {
-        VStack {
-            AudioLevelView(level: 0.5)
-                .frame(height: 100)
-            
-            WaveformView(level: 0.7)
-                .frame(height: 60)
-        }
-        .padding()
+        BarsView(level: 0.7)
+            .frame(height: 80)
+            .padding()
     }
 }
