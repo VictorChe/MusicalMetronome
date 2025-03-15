@@ -31,14 +31,16 @@ struct TrainingView: View {
                 }
             }
             .navigationBarBackButtonHidden(model.isRunning || model.isCountdown)
-            .fullScreenCover(isPresented: $showResults) {
-                ResultsView(model: model)
-                    .onDisappear {
-                        // Проверяем, что тренировка действительно завершена
-                        if !model.isRunning && !model.isCountdown {
-                            dismiss()
-                        }
+            .fullScreenCover(isPresented: $showResults, onDismiss: {
+                // Проверяем, завершена ли тренировка
+                if !model.isRunning && !model.isCountdown {
+                    // Если завершена, возвращаемся на главный экран
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        dismiss()
                     }
+                }
+            }) {
+                ResultsView(model: model)
             }
         }
     }
@@ -169,28 +171,16 @@ struct TrainingView: View {
             Text("Тренировка завершена!")
                 .font(.title)
                 .fontWeight(.bold)
-
-            Button {
-                showResults = true
-            } label: {
-                Text("Посмотреть результаты")
-                    .font(.headline)
-                    .foregroundColor(.white)
-                    .padding()
-                    .background(Color.blue)
-                    .cornerRadius(10)
-            }
-
-            Button {
-                dismiss()
-            } label: {
-                Text("Вернуться в меню")
-                    .font(.headline)
-                    .foregroundColor(.white)
-                    .padding()
-                    .background(Color.green)
-                    .cornerRadius(10)
-            }
+                .padding()
+            
+            // Автоматически показываем результаты после небольшой задержки
+            Text("Загрузка результатов...")
+                .onAppear {
+                    // Небольшая задержка для анимации
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                        showResults = true
+                    }
+                }
         }
     }
 
@@ -200,18 +190,40 @@ struct TrainingView: View {
             model.audioEngine = audioEngine
 
             do {
-                try AVAudioSession.sharedInstance().setCategory(.playAndRecord, mode: .default)
+                // Оптимизируем аудио сессию для метронома и микрофона
+                try AVAudioSession.sharedInstance().setCategory(.playAndRecord, 
+                                                              mode: .default, 
+                                                              options: [.allowBluetooth, .defaultToSpeaker])
                 try AVAudioSession.sharedInstance().setActive(true)
 
-                audioEngine.startMonitoring()
-                audioEngine.onAudioDetected = { intensity in
-                    handleUserAction()
+                // Запускаем мониторинг аудио с улучшенной обработкой
+                DispatchQueue.global(qos: .userInitiated).async {
+                    self.audioEngine.startMonitoring()
+                    
+                    // Переключаемся на главный поток для обновления UI
+                    DispatchQueue.main.async {
+                        self.audioEngine.onAudioDetected = { intensity in
+                            self.handleUserAction()
+                        }
+                    }
                 }
+                
+                print("Мониторинг аудио успешно запущен")
             } catch {
-                // Показываем ошибку пользователю
-                feedback = "Ошибка микрофона: \(error.localizedDescription)"
+                // Показываем понятную ошибку пользователю
+                let errorMessage = "Ошибка доступа к микрофону: \(error.localizedDescription)"
+                print(errorMessage)
+                
+                feedback = errorMessage
                 feedbackColor = .red
                 showFeedback = true
+                
+                // Показываем ошибку дольше для важных сообщений
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                    if self.feedback == errorMessage {
+                        self.showFeedback = false
+                    }
+                }
             }
         }
     }

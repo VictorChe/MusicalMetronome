@@ -1,3 +1,4 @@
+
 import SwiftUI
 
 struct BarsView: View {
@@ -44,7 +45,7 @@ struct AudioLevelView: View {
         VStack(spacing: 8) {
             BarsView(level: level)
 
-            WaveformView(level: level)
+            AnimatedWaveformView(level: level)
                 .frame(height: 60)
                 .padding(.vertical, 5)
 
@@ -55,70 +56,91 @@ struct AudioLevelView: View {
     }
 }
 
-struct AudioLevelView_Previews: PreviewProvider {
-    static var previews: some View {
-        AudioLevelView(level: 0.5)
-            .frame(height: 100)
-            .padding()
-    }
-}
-
-struct WaveformView: View {
+// Улучшенная анимированная визуализация звуковой волны
+struct AnimatedWaveformView: View {
     var level: Double
-    @State private var phase: CGFloat = 0
-
+    @State private var phase: Double = 0
+    
+    // Используем таймер для гладкой анимации
+    let timer = Timer.publish(every: 0.05, on: .main, in: .common).autoconnect()
+    
     var body: some View {
-        TimelineView(.animation) { _ in
+        GeometryReader { geometry in
             Canvas { context, size in
+                // Настройки волны
                 let width = size.width
                 let height = size.height
                 let midHeight = height / 2
-
-                // Создаем градиент
-                let colors = [Color.blue, Color.purple, Color.pink]
-                let gradient = Gradient(colors: colors)
-
+                let amplitude = midHeight * min(CGFloat(level) * 0.8 + 0.2, 0.8)
+                let frequency: Double = 0.6 + (level * 2) // Частота зависит от уровня звука
+                let waves: Double = 5 // Количество волн
+                
                 // Создаем путь для волны
                 var path = Path()
                 path.move(to: CGPoint(x: 0, y: midHeight))
-
-                // Обновляем фазу для создания анимации движения
-                phase -= 2
-                if phase <= -width {
-                    phase = 0
-                }
-
+                
                 // Рисуем волну
-                let waves = 3 // Количество волн
-                let amplitude = midHeight * min(CGFloat(level) * 0.8 + 0.2, 0.8) // Высота волны зависит от уровня звука
-
                 for x in stride(from: 0, to: width, by: 1) {
-                    let relativeX = x / width
-                    let sine = sin((relativeX * .pi * 2 * CGFloat(waves)) + phase / 20)
-                    let y = midHeight + sine * amplitude
+                    let relativeX = Double(x) / Double(width)
+                    let normalizedPhase = phase.truncatingRemainder(dividingBy: 2 * .pi)
+                    let sine = sin((relativeX * .pi * 2 * waves * frequency) + normalizedPhase)
+                    let y = midHeight + sine * CGFloat(amplitude)
                     path.addLine(to: CGPoint(x: x, y: y))
                 }
-
-                // Завершаем путь
-                path.addLine(to: CGPoint(x: width, y: midHeight))
-
-                // Рисуем волну с градиентом
+                
+                // Градиент для визуализации
+                let gradient = Gradient(colors: [
+                    Color.blue.opacity(0.7),
+                    Color.purple.opacity(0.7),
+                    Color.pink.opacity(0.7)
+                ])
+                
+                // Настройки отображения
                 context.stroke(
                     path,
-                    with: .color(Color.blue.opacity(0.7)),
-                    style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round)
+                    with: .linearGradient(
+                        Gradient(colors: [.blue, .purple]),
+                        startPoint: CGPoint(x: 0, y: 0),
+                        endPoint: CGPoint(x: width, y: 0)
+                    ),
+                    lineWidth: 3
+                )
+                
+                // Дополнительная волна с задержкой для эффекта объема
+                var secondPath = Path()
+                secondPath.move(to: CGPoint(x: 0, y: midHeight))
+                
+                for x in stride(from: 0, to: width, by: 1) {
+                    let relativeX = Double(x) / Double(width)
+                    let normalizedPhase = (phase - 0.5).truncatingRemainder(dividingBy: 2 * .pi)
+                    let sine = sin((relativeX * .pi * 2 * waves * frequency) + normalizedPhase)
+                    let y = midHeight + sine * CGFloat(amplitude * 0.7)
+                    secondPath.addLine(to: CGPoint(x: x, y: y))
+                }
+                
+                context.stroke(
+                    secondPath,
+                    with: .color(Color.purple.opacity(0.5)),
+                    lineWidth: 2
                 )
             }
+            .background(Color.black.opacity(0.05))
+            .cornerRadius(10)
+            .onReceive(timer) { _ in
+                // Обновляем фазу для анимации движения
+                phase += level * 0.3 + 0.1
+                if phase > .pi * 2 {
+                    phase -= .pi * 2
+                }
+            }
         }
-        .background(Color.gray.opacity(0.1))
-        .cornerRadius(10)
     }
 }
 
-struct BarsView_Previews: PreviewProvider {
+struct AudioLevelView_Previews: PreviewProvider {
     static var previews: some View {
-        BarsView(level: 0.7)
-            .frame(height: 80)
+        AudioLevelView(level: 0.5)
+            .frame(height: 120)
             .padding()
     }
 }

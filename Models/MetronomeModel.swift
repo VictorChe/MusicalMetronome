@@ -74,6 +74,20 @@ class MetronomeModel: ObservableObject {
             }
         }
     }
+    
+    // Полная очистка ресурсов метронома
+    func cleanupResources() {
+        timer?.invalidate()
+        timer = nil
+        audioPlayer?.stop()
+        
+        // Освобождаем аудио ресурсы
+        try? AVAudioSession.sharedInstance().setActive(false)
+        audioPlayer = nil
+        
+        // Пересоздаем аудио плеер
+        setupAudio()
+    }
 
     func resetResults() {
         perfectHits = 0
@@ -86,6 +100,11 @@ class MetronomeModel: ObservableObject {
         lastHitBeat = -1
         lastHitTime = 0
         startTime = nil
+        isRunning = false
+        isCountdown = false
+        
+        // Очищаем ресурсы аудио для предотвращения дублирования звука
+        cleanupResources()
     }
 
     func startMetronome() {
@@ -131,6 +150,14 @@ class MetronomeModel: ObservableObject {
         // Очищаем состояние аудио после завершения
         audioPlayer?.stop()
         lastDetectedAudioTime = nil
+        
+        print("Метроном остановлен, тренировка завершена")
+        
+        // Освобождаем связь с аудиодвижком
+        audioEngine = nil
+        
+        // Поскольку звук остановлен, сбрасываем аудиосессию
+        try? AVAudioSession.sharedInstance().setActive(false)
     }
 
     // Ссылка на аудио-движок для уведомления о кликах

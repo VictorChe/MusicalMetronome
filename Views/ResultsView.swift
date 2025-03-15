@@ -1,4 +1,3 @@
-
 import SwiftUI
 
 struct ResultsView: View {
@@ -57,11 +56,13 @@ struct ResultsView: View {
 
                 VStack(spacing: 15) {
                     Button {
-                        // Повторить тренировку с теми же настройками
+                        // Полная очистка и новая подготовка метронома
+                        model.cleanupResources()
                         model.resetResults()
-                        // Увеличиваем задержку, чтобы избежать двойного клика метронома
                         dismiss()
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+
+                        // Увеличенная задержка для избежания проблем с навигацией
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
                             model.startMetronome()
                         }
                     } label: {
@@ -93,16 +94,17 @@ struct ResultsView: View {
                     }
 
                     Button {
-                        // Сначала останавливаем метроном, если он еще активен
-                        if model.isRunning {
-                            model.stopMetronome()
-                        }
-                        // Полностью закрываем все экраны и возвращаемся на главный
+                        // Очищаем ресурсы при возврате на главный экран
+                        model.cleanupResources()
+                        model.resetResults()
                         dismiss()
+
+                        // Используем NotificationCenter для гарантированного возврата на главный экран
+                        NotificationCenter.default.post(name: Notification.Name("ReturnToMainScreen"), object: nil)
                     } label: {
                         HStack {
                             Image(systemName: "house.fill")
-                            Text("Вернуться в меню")
+                            Text("Вернуться домой")
                         }
                         .font(.headline)
                         .foregroundColor(.white)
@@ -372,7 +374,7 @@ struct SpectrogramView: View {
                     let hit = model.userHits[index]
                     let x = hit.beatPosition * geometry.size.width / CGFloat(model.totalBeats)
                     // Определяем цвет заранее
-                    let hitColor: Color = hit.deviation <= 0.05 ? .green : 
+                    let hitColor: Color = hit.deviation <= 0.05 ? .green :
                                        hit.deviation <= 0.15 ? .blue : .orange
 
                     Circle()
@@ -543,7 +545,7 @@ struct UserHits: View {
         GeometryReader { geometry in
             ZStack {
                 // Используем реальные данные из модели для отображения ударов
-                // Это примерная визуализация, в реальном приложении нужно 
+                // Это примерная визуализация, в реальном приложении нужно
                 // получать временные метки каждого удара
 
                 // Идеальные попадания
