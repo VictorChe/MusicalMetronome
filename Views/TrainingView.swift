@@ -198,9 +198,19 @@ struct TrainingView: View {
             // Устанавливаем двустороннюю связь между моделью и аудио-движком
             model.audioEngine = audioEngine
 
-            audioEngine.startMonitoring()
-            audioEngine.onAudioDetected = { intensity in
-                handleUserAction()
+            do {
+                try AVAudioSession.sharedInstance().setCategory(.playAndRecord, mode: .default)
+                try AVAudioSession.sharedInstance().setActive(true)
+                
+                audioEngine.startMonitoring()
+                audioEngine.onAudioDetected = { intensity in
+                    handleUserAction()
+                }
+            } catch {
+                // Показываем ошибку пользователю
+                feedback = "Ошибка микрофона: \(error.localizedDescription)"
+                feedbackColor = .red
+                showFeedback = true
             }
         }
     }

@@ -197,16 +197,28 @@ class AudioEngine: NSObject, ObservableObject {
     private func detectBeat(currentLevel: Double) {
         guard previousAudioLevels.count > 2 else { return }
 
+        // Динамический порог на основе предыдущих уровней
+        let averageLevel = previousAudioLevels.reduce(0, +) / Double(previousAudioLevels.count)
+        let dynamicThreshold = averageLevel * 1.5
+
         // Проверяем, не является ли сигнал эхом метронома
         if isLikelyMetronomeEcho() {
             print("Игнорирование вероятного эха метронома")
             return
         }
         
-        // Проверяем, прошло ли достаточно времени с последнего обнаружения
-        if let lastTime = lastBeatDetectionTime, Date().timeIntervalSince(lastTime) < minimumBeatInterval {
-            print("Слишком частое обнаружение звука, игнорируем")
-            return
+        // Улучшенная проверка временного интервала
+        if let lastTime = lastBeatDetectionTime {
+            let timeSinceLastBeat = Date().timeIntervalSince(lastTime)
+            if timeSinceLastBeat < minimumBeatInterval {
+                // Проверяем, не является ли это более сильным сигналом
+                if currentLevel > dynamicThreshold * 1.5 {
+                    print("Обнаружен сильный сигнал, обрабатываем несмотря на короткий интервал")
+                } else {
+                    print("Слишком частое обнаружение звука, игнорируем")
+                    return
+                }
+            }
         }
 
         // Снизим порог обнаружения до минимума

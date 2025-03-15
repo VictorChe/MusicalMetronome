@@ -213,6 +213,10 @@ class MetronomeModel: ObservableObject {
         
         let currentTime = Date().timeIntervalSince1970
         
+        // Компенсация системной задержки
+        let systemLatency = 0.02 // 20ms базовая системная задержка
+        let totalLatencyCompensation = systemLatency + (latencyCompensation / 1000.0)
+        
         // Получаем текущее время с момента начала
         guard let startTime = startTime else { 
             print("Ошибка: startTime не установлено")
