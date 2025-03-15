@@ -188,18 +188,20 @@ struct TrainingView: View {
         if model.mode == .microphone {
             // Обеспечиваем связь между метрономом и аудио движком
             model.audioEngine = audioEngine
+            
+            // Устанавливаем обратный вызов для модели метронома
+            model.viewCallback = {
+                self.handleUserAction()
+            }
 
             // Запускаем мониторинг аудио с задержкой после настройки метронома
             // Это предотвратит конфликты аудио сессий
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
-                guard let self = self else { return }
-
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 // Запускаем мониторинг аудио
                 self.audioEngine.startMonitoring()
 
                 // Устанавливаем обработчик обнаружения звука
-                self.audioEngine.onAudioDetected = { [weak self] intensity in
-                    guard let self = self else { return }
+                self.audioEngine.onAudioDetected = { intensity in
                     self.handleUserAction()
                 }
 

@@ -6,7 +6,7 @@ class MetronomeModel: ObservableObject {
     @Published var tempo: Double = 90
     @Published var duration: Double = 20
     @Published var mode: TrainingMode = .tap
-    
+
     // Компенсация задержки (в миллисекундах)
     @Published var latencyCompensation: Double = 0 // Стандартное значение
 
@@ -69,12 +69,12 @@ class MetronomeModel: ObservableObject {
                 let options: AVAudioSession.CategoryOptions = [.mixWithOthers, .allowBluetooth, .defaultToSpeaker]
                 try AVAudioSession.sharedInstance().setCategory(.playAndRecord, mode: .default, options: options)
                 try AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
-                
+
                 // Создаем и подготавливаем аудио плеер
                 audioPlayer = try AVAudioPlayer(contentsOf: soundURL)
                 audioPlayer?.prepareToPlay()
                 audioPlayer?.volume = 1.0
-                
+
                 // Устанавливаем аудио плеер для одновременного воспроизведения нескольких звуков
                 audioPlayer?.numberOfLoops = 0
                 audioPlayer?.enableRate = false
@@ -85,25 +85,25 @@ class MetronomeModel: ObservableObject {
             print("Ошибка: аудио файл метронома не найден")
         }
     }
-    
+
     // Полная очистка ресурсов метронома
     func cleanupResources() {
         // Останавливаем таймер
         timer?.invalidate()
         timer = nil
-        
+
         // Останавливаем аудио плеер
         audioPlayer?.stop()
-        
+
         // Освобождаем аудио плеер, но не деактивируем сессию полностью,
         // чтобы избежать конфликтов при быстром переключении между экранами
         audioPlayer = nil
-        
+
         // Пересоздаем аудио плеер с небольшой задержкой
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
             self?.setupAudio()
         }
-        
+
         print("Ресурсы метронома очищены")
     }
 
@@ -120,7 +120,7 @@ class MetronomeModel: ObservableObject {
         startTime = nil
         isRunning = false
         isCountdown = false
-        
+
         // Очищаем ресурсы аудио для предотвращения дублирования звука
         cleanupResources()
     }
@@ -164,18 +164,18 @@ class MetronomeModel: ObservableObject {
         timer?.invalidate()
         timer = nil
         calculateSkippedBeats()
-        
+
         // Очищаем состояние аудио после завершения
         audioPlayer?.stop()
         lastDetectedAudioTime = nil
-        
+
         print("Метроном остановлен, тренировка завершена")
-        
+
         // Освобождаем связь с аудиодвижком, не останавливая его работу
         // Это предотвратит проблемы с повторным запуском
         let engine = audioEngine
         audioEngine = nil
-        
+
         // Останавливаем мониторинг в отдельном потоке после небольшой задержки
         // чтобы избежать блокировки UI и конфликтов аудио сессии
         DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 0.2) {
@@ -185,7 +185,7 @@ class MetronomeModel: ObservableObject {
 
     // Ссылка на аудио-движок для уведомления о кликах
     var audioEngine: AudioEngine?
-    
+
     private func playTick() {
         // Проверяем, что аудио плеер существует
         guard let player = audioPlayer else {
@@ -193,48 +193,50 @@ class MetronomeModel: ObservableObject {
             setupAudio()
             return
         }
-        
+
         // Останавливаем звук, если он воспроизводится
         if player.isPlaying {
             player.stop()
         }
-        
+
         // Сбрасываем позицию воспроизведения и запускаем звук
         player.currentTime = 0
-        
+
         // Воспроизводим с проверкой ошибок
         if !player.play() {
             print("Ошибка воспроизведения звука метронома")
-            
+
             // Пробуем пересоздать аудио плеер
             setupAudio()
             audioPlayer?.play()
         }
-        
+
         // Уведомляем аудио-движок о клике метронома для фильтрации эха
         if let audioEngine = audioEngine {
             audioEngine.notifyMetronomeClick()
         }
     }
 
+    var viewCallback: (() -> Void)?
+
     func handleTap() {
         guard isRunning else { return }
 
         let currentTime = Date().timeIntervalSince1970
-        
+
         // Получаем текущее время с момента начала
         guard let startTime = startTime else { return }
         let actualElapsed = Date().timeIntervalSince(startTime)
-        
+
         // Рассчитываем, на каком мы сейчас бите и каково отклонение
         let exactBeatPosition = actualElapsed / beatInterval  // Точная позиция в битах
         let nearestBeatNumber = round(exactBeatPosition)      // Ближайший целый бит
-        
+
         // Отклонение в долях бита (от 0 до 0.5)
         let beatDeviation = abs(exactBeatPosition - nearestBeatNumber)
         // Отклонение в секундах
         let timeDeviation = beatDeviation * beatInterval
-        
+
         print("Точная позиция: \(exactBeatPosition), Ближайший бит: \(nearestBeatNumber), Отклонение в долях: \(beatDeviation), Отклонение в секундах: \(timeDeviation)")
 
         // Проверяем минимальный интервал между нажатиями
@@ -273,96 +275,97 @@ class MetronomeModel: ObservableObject {
         }
 
         print("Статистика - Идеальные: \(perfectHits), Хорошие: \(goodHits), Неточные: \(missedHits), Мимо: \(extraHits)")
+        viewCallback?()
     }
 
     // Пороги для частоты обнаружения попаданий
     private var lastDetectedAudioTime: Date?
     private let minimumAudioDetectionInterval: TimeInterval = 0.15 // 150 мс
-    
+
     // Максимальное число "мимо" за тренировку для предотвращения ложных срабатываний
     private let maxExtraHitsPerTraining = 30
-    
+
     func handleAudioInput(intensity: Double) {
         guard isRunning else { return }
-        
+
         let currentTime = Date().timeIntervalSince1970
-        
+
         // Компенсация системной задержки
         let systemLatency = 0.02 // 20ms базовая системная задержка
         let totalLatencyCompensation = systemLatency + (latencyCompensation / 1000.0)
-        
+
         // Получаем текущее время с момента начала
         guard let startTime = startTime else { 
             print("Ошибка: startTime не установлено")
             return 
         }
-        
+
         // Защита от слишком частых аудио событий
         if let lastAudioTime = lastDetectedAudioTime, 
            Date().timeIntervalSince(lastAudioTime) < minimumAudioDetectionInterval {
             print("Игнорирование слишком частого аудиособытия")
             return
         }
-        
+
         // Устанавливаем время последнего аудиособытия
         lastDetectedAudioTime = Date()
-        
+
         // Ограничиваем максимальное количество нот "мимо" за тренировку
         if extraHits >= maxExtraHitsPerTraining {
             print("Достигнуто максимальное количество нот 'мимо', дальнейшие игнорируются")
             return
         }
-        
+
         // Задержка обработки аудио плюс настраиваемая пользователем компенсация задержки
         let baseDelay = 0.075 // 75 мс - базовая задержка обработки аудио
         let userLatencyCompensation = latencyCompensation / 1000.0 // переводим из мс в секунды
         let totalDelay = baseDelay + userLatencyCompensation
-        
+
         // Корректируем фактическое время с учетом общей задержки
         let actualElapsed = Date().timeIntervalSince(startTime) - totalDelay
-        
+
         print("Применяемая задержка: \(totalDelay) сек (базовая: \(baseDelay) + пользовательская: \(userLatencyCompensation))")
-        
+
         // Рассчитываем, на каком мы сейчас бите и каково отклонение
         let exactBeatPosition = actualElapsed / beatInterval
         let nearestBeatNumber = round(exactBeatPosition)
-        
+
         // Отклонение в долях бита (от 0 до 0.5)
         let beatDeviation = abs(exactBeatPosition - nearestBeatNumber)
-        
+
         // Значительно увеличиваем допустимое отклонение для режима микрофона
         let microAdjustment = 2.5 // Немного уменьшаем увеличение порогов
-        
+
         // Если прошло совсем мало времени с последнего звука, это явно множественное нажатие
         if currentTime - lastHitTime < (minimumTimeBetweenHits * 0.5) {
             print("Обнаружен множественный звук в течение короткого времени: \(currentTime - lastHitTime)c")
             return // Полностью игнорируем слишком частые срабатывания
         }
-        
+
         // Если это тот же бит, что и раньше, но прошло немного больше времени
         if Int(nearestBeatNumber) == lastHitBeat && currentTime - lastHitTime < beatInterval * 0.7 {
             print("Обнаружен множественный звук для бита \(nearestBeatNumber)")
             return // Игнорируем множественные нажатия на том же бите
         }
-        
+
         // Проверка на нахождение в допустимом диапазоне битов
         if nearestBeatNumber < 1 || nearestBeatNumber > Double(totalBeats) {
             print("Бит \(nearestBeatNumber) вне допустимого диапазона 1-\(totalBeats)")
             return // Игнорируем события до начала или после окончания тренировки
         }
-        
+
         // Основная логика определения попадания
         lastHitTime = currentTime
         lastHitBeat = Int(nearestBeatNumber)
-        
+
         // Определяем тип попадания с учетом сильно увеличенных порогов для микрофона
         print("Отклонение в долях бита: \(beatDeviation)")
-        
+
         // Для режима микрофона увеличиваем пороги
         let adjustedPerfectThreshold = perfectThresholdRatio * microAdjustment
         let adjustedGoodThreshold = goodThresholdRatio * microAdjustment 
         let adjustedPoorThreshold = poorThresholdRatio * microAdjustment
-        
+
         if beatDeviation <= adjustedPerfectThreshold {
             perfectHits += 1
             print("Идеальное попадание: \(beatDeviation) (порог: \(adjustedPerfectThreshold))")
@@ -376,8 +379,9 @@ class MetronomeModel: ObservableObject {
             extraHits += 1
             print("Нота мимо: \(beatDeviation) (выше порога: \(adjustedPoorThreshold))")
         }
-        
+
         print("Статистика - Идеальные: \(perfectHits), Хорошие: \(goodHits), Неточные: \(missedHits), Мимо: \(extraHits)")
+        viewCallback?()
     }
 
     func calculateSkippedBeats() {
