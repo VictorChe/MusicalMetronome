@@ -23,7 +23,11 @@ struct TrainingView: View {
             }
             .padding()
             .onAppear {
+                // Устанавливаем аудио движок при появлении экрана
                 setupAudioEngine()
+                
+                // Сбрасываем флаг показа результатов при появлении экрана тренировки
+                showResults = false
             }
             .onDisappear {
                 if model.mode == .microphone {

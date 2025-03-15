@@ -31,11 +31,15 @@ class AudioEngine: NSObject, ObservableObject {
     }
 
     deinit {
-        stopMonitoring()
+        // Важно: остановить мониторинг безопасно, без переcоздания инстансов
+        if isMonitoring {
+            stopMonitoring()
+        }
+        
         if let fftSetup = fftSetup {
             vDSP_destroy_fftsetup(fftSetup)
         }
-        print("AudioEngine deinit called")
+        print("AudioEngine deinit called - ресурсы безопасно освобождены")
     }
 
     func requestPermission() {

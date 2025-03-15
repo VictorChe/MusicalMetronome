@@ -126,11 +126,24 @@ class MetronomeModel: ObservableObject {
     }
 
     func startMetronome() {
+        // Убедимся, что ресурсы чистые перед началом
+        cleanupResources()
+        
+        // Полностью сбрасываем все результаты
         resetResults()
         isCountdown = true
         countdownCount = 4
+        
+        // Проверяем состояние аудио плеера
+        if audioPlayer == nil {
+            print("Настраиваем аудио перед началом тренировки")
+            setupAudio()
+        }
 
+        // Воспроизводим первый тик
         playTick()
+        
+        // Настраиваем основной таймер метронома
         timer = Timer.scheduledTimer(withTimeInterval: beatInterval, repeats: true) { [weak self] _ in
             guard let self = self else { return }
 
@@ -156,6 +169,8 @@ class MetronomeModel: ObservableObject {
                 }
             }
         }
+        
+        print("Метроном успешно запущен")
     }
 
     func stopMetronome() {
