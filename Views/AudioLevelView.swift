@@ -65,30 +65,38 @@ struct WaveformView: View {
     
     let timer = Timer.publish(every: 0.05, on: .main, in: .common).autoconnect()
     
+    private func calculateWaveY(x: CGFloat, width: CGFloat, midHeight: CGFloat, amplitude: CGFloat) -> CGFloat {
+        let relativeX = x / width
+        let frequency = 10.0
+        
+        let sin1 = sin(relativeX * .pi * 2 * frequency + phase)
+        let sin2 = sin(relativeX * .pi * 2 * frequency * 0.5 + phase * 1.5)
+        let combinedSin = sin1 * 0.7 + sin2 * 0.3
+        
+        return midHeight + CGFloat(combinedSin) * amplitude
+    }
+    
+    private func createWavePath(size: CGSize) -> Path {
+        let width = size.width
+        let height = size.height
+        let midHeight = height / 2
+        let amplitude = CGFloat(level * height * 0.8)
+        
+        var path = Path()
+        path.move(to: CGPoint(x: 0, y: midHeight))
+        
+        for x in stride(from: 0, to: width, by: 1) {
+            let y = calculateWaveY(x: x, width: width, midHeight: midHeight, amplitude: amplitude)
+            path.addLine(to: CGPoint(x: x, y: y))
+        }
+        
+        return path
+    }
+    
     var body: some View {
         TimelineView(.animation) { timeline in
             Canvas { context, size in
-                let width = size.width
-                let height = size.height
-                let midHeight = height / 2
-                
-                var path = Path()
-                path.move(to: CGPoint(x: 0, y: midHeight))
-                
-                let amplitude = CGFloat(level * height * 0.8)
-                let frequency = 10.0
-                
-                for x in stride(from: 0, to: width, by: 1) {
-                    let relativeX = x / width
-                    
-                    let sin1 = sin(relativeX * .pi * 2 * frequency + phase)
-                    let sin2 = sin(relativeX * .pi * 2 * frequency * 0.5 + phase * 1.5)
-                    
-                    let combinedSin = sin1 * 0.7 + sin2 * 0.3
-                    
-                    let y = midHeight + CGFloat(combinedSin) * amplitude
-                    path.addLine(to: CGPoint(x: x, y: y))
-                }
+                let path = createWavePath(size: size)
                 
                 let highlightPosition = CGPoint(
                     x: width * 0.5, 
