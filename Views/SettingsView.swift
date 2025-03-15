@@ -45,6 +45,43 @@ struct SettingsView: View {
                         .foregroundColor(.secondary)
                 }
             }
+            
+            Section(header: Text("Ритмические фигуры")) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Выберите ритмические фигуры для тренировки:")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    ForEach(MetronomeModel.RhythmPattern.allCases) { pattern in
+                        HStack {
+                            Toggle(isOn: Binding(
+                                get: { model.selectedRhythmPatterns.contains(pattern) },
+                                set: { selected in
+                                    if selected {
+                                        if !model.selectedRhythmPatterns.contains(pattern) {
+                                            model.selectedRhythmPatterns.append(pattern)
+                                        }
+                                    } else {
+                                        model.selectedRhythmPatterns.removeAll { $0 == pattern }
+                                        // Убедимся, что хотя бы один паттерн выбран
+                                        if model.selectedRhythmPatterns.isEmpty {
+                                            model.selectedRhythmPatterns = [.quarter]
+                                        }
+                                    }
+                                }
+                            )) {
+                                HStack {
+                                    ForEach(pattern.symbols, id: \.self) { symbol in
+                                        Text(symbol)
+                                            .font(.title)
+                                    }
+                                    Text(" - \(pattern.rawValue)")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
 
             Section(header: Text("Калибровка задержки"), footer: Text("Рекомендуемые значения: AirPods: 50-70 мс, обычные наушники: 30-50 мс, через динамик: 100-150 мс")) {
                 Slider(value: $model.latencyCompensation, in: 0...200, step: 1) {

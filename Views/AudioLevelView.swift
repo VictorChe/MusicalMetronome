@@ -3,134 +3,155 @@ import SwiftUI
 
 struct AudioLevelView: View {
     var level: Double
-    @State private var phase: CGFloat = 0
-    let timer = Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()
+    var isBeatDetected: Bool = false
+    var showWaveform: Bool = true
+    var beats: [Double] = []
+    var currentBeatPosition: Double = 0
+    var userHits: [(time: Double, accuracy: Double)] = []
+    @State private var scrollOffset: CGFloat = 0
+    @State private var isFullScreen: Bool = false
+    
+    let numberOfVisibleBeats: Int = 8
+    let beatLineColor = Color.gray.opacity(0.7)
+    let waveColor = Color.blue.opacity(0.5)
+    let accuracyColors: [Color] = [.green, .blue, .orange, .red]
     
     var body: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 3) {
-                ForEach(0..<20, id: \.self) { index in
-                    Rectangle()
-                        .fill(barColor(for: index))
-                        .frame(width: 10)
-                        .frame(height: barHeight(for: index))
-                        .cornerRadius(5)
-                }
+        ZStack {
+            // Подложка для полноэкранного режима
+            if isFullScreen {
+                Color.black.opacity(0.1)
+                    .cornerRadius(8)
+                    .edgesIgnoringSafeArea(.all)
             }
             
-            AnimatedWaveformView(level: level, phase: phase)
-                .frame(height: 60)
-                .padding(.vertical, 5)
-            
-            Text("Микрофон активен")
-                .font(.caption)
-                .foregroundColor(.secondary)
-        }
-        .onReceive(timer) { _ in
-            // Обновляем фазу для анимации движения
-            phase += level * 0.3 + 0.1
-        }
-    }
-    
-    private func barHeight(for index: Int) -> CGFloat {
-        let baseHeight: Double = 20.0
-        let maxHeight: Double = 100.0
-        let threshold = Double(index) * 0.2
-        let scaledLevel = min(max(0, level - threshold) * 2, 1)
-        return baseHeight + (maxHeight - baseHeight) * scaledLevel
-    }
-    
-    private func barColor(for index: Int) -> Color {
-        let threshold = Double(index) * 0.2
-        if level > threshold + 0.8 {
-            return .red
-        } else if level > threshold + 0.5 {
-            return .orange
-        } else if level > threshold {
-            return .green
-        } else {
-            return Color.gray.opacity(0.3)
-        }
-    }
-}
-
-struct AnimatedWaveformView: View {
-    var level: Double
-    var phase: CGFloat
-    
-    var body: some View {
-        Canvas { context, size in
-            let width = size.width
-            let height = size.height
-            let midHeight = height / 2
-            let amplitude = midHeight * CGFloat(level) * 0.8
-            
-            context.stroke(
-                Path { path in
-                    path.move(to: CGPoint(x: 0, y: midHeight))
-                    
-                    for x in stride(from: 0, to: width, by: 1) {
-                        let relativeX = x / width
-                        let frequency = 20.0 + level * 10
-                        let y = midHeight + sin(relativeX * frequency + phase) * amplitude
-                        path.addLine(to: CGPoint(x: x, y: y))
+            ScrollView(.horizontal, showsIndicators: true) {
+                ZStack {
+                    // Фоновая сетка с вертикальными линиями тактов
+                    HStack(spacing: 0) {
+                        ForEach(0..<max(beats.count, 16), id: \.self) { i in
+                            GeometryReader { geo in
+                                VStack {
+                                    // Вертикальная линия такта
+                                    Rectangle()
+                                        .fill(beatLineColor)
+                                        .frame(width: 1)
+                                        .frame(height: geo.size.height * 0.8)
+                                        .position(x: geo.size.width / 2, y: geo.size.height / 2)
+                                    
+                                    // Номер такта
+                                    Text("\(i + 1)")
+                                        .font(.caption2)
+                                        .foregroundColor(.gray)
+                                }
+                            }
+                            .frame(width: 50)
+                        }
                     }
-                },
-                with: .color(Color.blue),
-                lineWidth: 2
-            )
-        }
-        .background(Color.black.opacity(0.05))
-        .cornerRadius(10)
-    }
-}
-
-struct BarsView: View {
-    var level: Double
-    
-    var body: some View {
-        HStack(spacing: 2) {
-            ForEach(0..<30, id: \.self) { index in
-                Rectangle()
-                    .fill(barColor(for: index))
-                    .frame(width: 3)
-                    .frame(height: barHeight(for: index))
-                    .cornerRadius(1.5)
+                    .frame(height: 80)
+                    
+                    // Горизонтальная линия времени
+                    GeometryReader { geo in
+                        Path { path in
+                            path.move(to: CGPoint(x: 0, y: geo.size.height / 2))
+                            path.addLine(to: CGPoint(x: geo.size.width, y: geo.size.height / 2))
+                        }
+                        .stroke(Color.gray, lineWidth: 1)
+                    }
+                    
+                    // Отметки попаданий пользователя
+                    ForEach(userHits.indices, id: \.self) { index in
+                        let hit = userHits[index]
+                        let beatWidth: CGFloat = 50
+                        let xPosition = CGFloat(hit.time) * beatWidth
+                        let colorIndex = min(Int(abs(hit.accuracy) * 10), accuracyColors.count - 1)
+                        
+                        Circle()
+                            .fill(accuracyColors[colorIndex])
+                            .frame(width: 10, height: 10)
+                            .position(x: xPosition, y: 40) // Расположение на горизонтальной линии
+                    }
+                    
+                    // Текущая позиция проигрывания
+                    GeometryReader { geo in
+                        let beatWidth: CGFloat = 50
+                        let xPosition = CGFloat(currentBeatPosition) * beatWidth
+                        
+                        Rectangle()
+                            .fill(Color.red)
+                            .frame(width: 2)
+                            .frame(height: geo.size.height * 0.9)
+                            .position(x: xPosition, y: geo.size.height / 2)
+                    }
+                    
+                    // Волна аудио (только для режима микрофона)
+                    if showWaveform {
+                        // Визуализация уровня звука в виде волны
+                        GeometryReader { geo in
+                            let maxHeight = geo.size.height * 0.7
+                            let centerY = geo.size.height / 2
+                            
+                            // Динамическая волна на основе уровня аудио
+                            Path { path in
+                                let waveWidth = geo.size.width * 0.2
+                                let amplitude = maxHeight * CGFloat(level)
+                                
+                                path.move(to: CGPoint(x: geo.size.width - waveWidth, y: centerY))
+                                
+                                // Создаем волновой эффект
+                                for i in 0...100 {
+                                    let x = geo.size.width - waveWidth + CGFloat(i) * waveWidth / 100
+                                    let y = centerY + sin(CGFloat(i) * 0.2 + CGFloat(Date().timeIntervalSince1970 * 10)) * amplitude
+                                    path.addLine(to: CGPoint(x: x, y: y))
+                                }
+                            }
+                            .stroke(waveColor, lineWidth: 3)
+                            
+                            // Усиленная визуализация при обнаружении звука
+                            if isBeatDetected {
+                                Path { path in
+                                    let waveWidth = geo.size.width * 0.2
+                                    let amplitude = maxHeight * 0.8 // Больше амплитуда
+                                    
+                                    path.move(to: CGPoint(x: geo.size.width - waveWidth, y: centerY))
+                                    
+                                    for i in 0...100 {
+                                        let x = geo.size.width - waveWidth + CGFloat(i) * waveWidth / 100
+                                        let y = centerY + sin(CGFloat(i) * 0.3 + CGFloat(Date().timeIntervalSince1970 * 15)) * amplitude
+                                        path.addLine(to: CGPoint(x: x, y: y))
+                                    }
+                                }
+                                .stroke(Color.green, lineWidth: 3)
+                            }
+                        }
+                    }
+                }
+                .frame(width: CGFloat(max(beats.count, 16)) * 50, height: 80)
             }
         }
-    }
-    
-    private func barHeight(for index: Int) -> CGFloat {
-        let maxHeight: Double = 40.0
-        let minHeight: Double = 3.0
-        let position = Double(index) / 30.0
-        
-        // Создаем эффект эквалайзера
-        let random = sin(position * 10 + Double(index) * 0.3) * 0.3 + 0.7
-        let levelContribution = level * random
-        
-        return minHeight + (maxHeight - minHeight) * levelContribution
-    }
-    
-    private func barColor(for index: Int) -> Color {
-        let position = Double(index) / 30.0
-        
-        // Градиент цветов в зависимости от позиции и уровня звука
-        if level > 0.7 {
-            return Color(hue: 0.6 - (position * 0.6), saturation: 0.8, brightness: 0.9)
-        } else if level > 0.4 {
-            return Color(hue: 0.3 + (position * 0.3), saturation: 0.7, brightness: 0.8)
-        } else {
-            return Color(hue: 0.5, saturation: 0.5 * level, brightness: 0.7)
-                .opacity(0.3 + level * 0.7)
+        .onTapGesture {
+            withAnimation {
+                isFullScreen.toggle()
+            }
         }
     }
 }
 
 struct AudioLevelView_Previews: PreviewProvider {
     static var previews: some View {
-        AudioLevelView(level: 0.5)
-            .frame(height: 200)
-            .padding()
+        AudioLevelView(
+            level: 0.3,
+            isBeatDetected: true,
+            showWaveform: true,
+            beats: [1, 2, 3, 4, 5, 6, 7, 8],
+            currentBeatPosition: 2.5,
+            userHits: [
+                (time: 1.1, accuracy: 0.1),
+                (time: 2.05, accuracy: 0.05),
+                (time: 3.2, accuracy: 0.2)
+            ]
+        )
+        .frame(height: 80)
+        .previewLayout(.sizeThatFits)
     }
 }

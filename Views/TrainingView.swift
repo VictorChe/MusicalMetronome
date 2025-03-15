@@ -155,14 +155,18 @@ struct TrainingView: View {
                             .font(.caption)
                             .foregroundColor(audioEngine.isBeatDetected ? .green : .gray)
                         
-                        AudioLevelView(level: audioEngine.audioLevel)
-                            .frame(height: 80)
-                            .overlay(
-                                // Визуальный индикатор обнаружения звука
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(audioEngine.isBeatDetected ? Color.green : Color.clear, lineWidth: 3)
-                                    .animation(.easeInOut(duration: 0.2), value: audioEngine.isBeatDetected)
-                            )
+                        // Улучшенная спектограмма
+                        AudioLevelView(
+                            level: audioEngine.audioLevel,
+                            isBeatDetected: audioEngine.isBeatDetected,
+                            showWaveform: model.mode == .microphone,
+                            beats: Array(1...model.totalBeats).map { Double($0) },
+                            currentBeatPosition: Double(model.currentBeat),
+                            userHits: getUserHits()
+                        )
+                        .frame(height: 80)
+                        .background(Color.black.opacity(0.05))
+                        .cornerRadius(8)
                         
                         // Индикатор обнаружения звука
                         HStack(spacing: 10) {
@@ -315,5 +319,36 @@ struct TrainingView: View {
         let mins = Int(seconds) / 60
         let secs = Int(seconds) % 60
         return String(format: "%d:%02d", mins, secs)
+    }
+    
+    // Функция для получения информации о попаданиях пользователя для визуализации
+    func getUserHits() -> [(time: Double, accuracy: Double)] {
+        // В реальном коде здесь будут данные о фактических попаданиях пользователя
+        // Для примера создаем тестовые данные на основе статистики
+        var hits: [(time: Double, accuracy: Double)] = []
+        
+        // Идеальные попадания (с малым отклонением)
+        for _ in 0..<model.perfectHits {
+            let time = Double.random(in: 1...Double(model.currentBeat))
+            let accuracy = Double.random(in: 0...0.05)
+            hits.append((time: time, accuracy: accuracy))
+        }
+        
+        // Хорошие попадания (с средним отклонением)
+        for _ in 0..<model.goodHits {
+            let time = Double.random(in: 1...Double(model.currentBeat))
+            let accuracy = Double.random(in: 0.05...0.15)
+            hits.append((time: time, accuracy: accuracy))
+        }
+        
+        // Неточные попадания (с большим отклонением)
+        for _ in 0..<model.missedHits {
+            let time = Double.random(in: 1...Double(model.currentBeat))
+            let accuracy = Double.random(in: 0.15...0.3)
+            hits.append((time: time, accuracy: accuracy))
+        }
+        
+        // В будущем здесь будут реальные данные из модели метронома
+        return hits
     }
 }

@@ -6,6 +6,10 @@ class MetronomeModel: ObservableObject {
     @Published var tempo: Double = 90
     @Published var duration: Double = 20
     @Published var mode: TrainingMode = .tap
+    
+    // Поддержка ритмических фигур
+    @Published var selectedRhythmPatterns: [RhythmPattern] = [.quarter, .eighthPair]
+    @Published var currentPatterns: [RhythmPattern] = Array(repeating: .quarter, count: 4)
 
     // Компенсация задержки (в миллисекундах)
     @Published var latencyCompensation: Double = 0 // Стандартное значение
@@ -56,6 +60,72 @@ class MetronomeModel: ObservableObject {
         case tap = "Тапы"
         case microphone = "Микрофон"
         var id: String { self.rawValue }
+    }
+    
+    enum RhythmPattern: String, CaseIterable, Identifiable {
+        case quarter = "Четверть"
+        case quarterRest = "Четверть пауза"
+        case eighthPair = "Две восьмых"
+        case eighthTriplet = "Триоль восьмыми"
+        case restEighthNote = "Пауза + восьмая"
+        case eighthNoteRest = "Восьмая + пауза"
+        
+        var id: String { self.rawValue }
+        
+        // Возвращает массив моментов времени для ноты в долях от целой ноты
+        // Например, для двух восьмых это будет [0, 0.5]
+        var noteTimings: [Double] {
+            switch self {
+            case .quarter:
+                return [0]
+            case .quarterRest:
+                return []
+            case .eighthPair:
+                return [0, 0.5]
+            case .eighthTriplet:
+                return [0, 0.33, 0.66]
+            case .restEighthNote:
+                return [0.5]
+            case .eighthNoteRest:
+                return [0]
+            }
+        }
+        
+        // Возвращает символы для отображения
+        var symbols: [String] {
+            switch self {
+            case .quarter:
+                return ["♩"]
+            case .quarterRest:
+                return ["𝄽"]
+            case .eighthPair:
+                return ["♪", "♪"]
+            case .eighthTriplet:
+                return ["♪", "♪", "♪"]
+            case .restEighthNote:
+                return ["𝄽", "♪"]
+            case .eighthNoteRest:
+                return ["♪", "𝄽"]
+            }
+        }
+    }
+    
+    // Обновляет случайный паттерн в указанной позиции
+    func updateRandomPattern(at position: Int) {
+        guard position >= 0 && position < currentPatterns.count && !selectedRhythmPatterns.isEmpty else { return }
+        
+        let randomPattern = selectedRhythmPatterns.randomElement() ?? .quarter
+        currentPatterns[position] = randomPattern
+    }
+    
+    // Инициализирует все паттерны случайными значениями
+    func initializeRandomPatterns() {
+        guard !selectedRhythmPatterns.isEmpty else { return }
+        
+        for i in 0..<currentPatterns.count {
+            let randomPattern = selectedRhythmPatterns.randomElement() ?? .quarter
+            currentPatterns[i] = randomPattern
+        }
     }
 
     init() {
