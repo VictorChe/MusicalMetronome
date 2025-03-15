@@ -118,7 +118,7 @@ struct WaveformView: View {
                 context.stroke(
                     path,
                     with: .linearGradient(
-                        gradient,
+                        linearGradient,
                         startPoint: CGPoint(x: 0, y: midHeight),
                         endPoint: CGPoint(x: width, y: midHeight)
                     ),
