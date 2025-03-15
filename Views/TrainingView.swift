@@ -39,7 +39,7 @@ struct TrainingView: View {
                 }
             }
             .onDisappear {
-                if model.mode == .microphone {
+                if model.mode == MetronomeModel.TrainingMode.microphone {
                     audioEngine.stopMonitoring()
                 }
             }
@@ -110,7 +110,7 @@ struct TrainingView: View {
                     if newBeat > 0 && (newBeat % 4 == 0 || lastUpdatedPatternIndex == -1) {
                         let randomIndex = Int.random(in: 0..<model.currentPatterns.count)
                         lastUpdatedPatternIndex = randomIndex
-                        model.updateRandomPattern(at: randomIndex)ateRandomPattern(at: randomIndex)
+                        model.updateRandomPattern(at: randomIndex)
                     }
                 }
 
@@ -256,7 +256,7 @@ struct TrainingView: View {
     }
 
     private func setupAudioEngine() {
-        if model.mode == .microphone {
+        if model.mode == MetronomeModel.TrainingMode.microphone {
             model.audioEngine = audioEngine
             model.viewCallback = {
                 self.handleUserAction()
@@ -281,9 +281,9 @@ struct TrainingView: View {
         let previousMissedHits = model.missedHits
         let previousExtraHits = model.extraHits
 
-        if model.mode == .tap {
+        if model.mode == MetronomeModel.TrainingMode.tap {
             model.handleTap()
-        } else if model.mode == .microphone {
+        } else if model.mode == MetronomeModel.TrainingMode.microphone {
             model.handleAudioInput(intensity: audioEngine.audioLevel)
         }
 

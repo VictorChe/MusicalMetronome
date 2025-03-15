@@ -17,10 +17,14 @@ let package = Package(
             name: "RhythmTrainer",
             dependencies: [],
             path: ".",
-            sources: ["Sources/RhythmTrainer", "Models", "Views"]
+            exclude: ["Tests", ".build", "attached_assets", ".gitignore", ".replit", "README.md", "generated-icon.png"],
+            sources: ["Models", "Views", "Sources"],
+            resources: [
+                .process("Resources")
+            ]
         ),
         .testTarget(
-            name: "workspaceTests",
+            name: "RhythmTrainerTests",
             dependencies: ["RhythmTrainer"],
             path: "Tests"
         )
