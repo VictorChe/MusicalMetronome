@@ -1,3 +1,4 @@
+
 import Foundation
 import AVFoundation
 
@@ -330,7 +331,7 @@ class MetronomeModel: ObservableObject {
 
         // Определяем текущий паттерн
         let currentPatternIndex = (Int(nearestBeatNumber) - 1) % 4
-        let currentPattern = currentPatterns[currentPatternIndex]
+        let currentPattern = currentPatterns[max(0, min(currentPatternIndex, currentPatterns.count - 1))]
         
         print("Точная позиция: \(exactBeatPosition), Ближайший бит: \(nearestBeatNumber), Текущий паттерн: \(currentPattern.rawValue), Отклонение в долях: \(beatDeviation), Отклонение в секундах: \(timeDeviation)")
 
@@ -360,7 +361,7 @@ class MetronomeModel: ObservableObject {
 
         // Получаем соответствующий паттерн
         let patternIndex = beatInPattern == 0 ? 3 : beatInPattern - 1
-        let pattern = currentPatterns[patternIndex]
+        let pattern = currentPatterns[max(0, min(patternIndex, currentPatterns.count - 1))]
 
         // Проверяем, должен ли быть звук в данном моменте согласно паттерну
         // Позиция внутри бита (0-1)
@@ -481,7 +482,7 @@ class MetronomeModel: ObservableObject {
 
         // Получаем соответствующий паттерн
         let patternIndex = beatInPattern == 0 ? 3 : beatInPattern - 1
-        let pattern = currentPatterns[patternIndex]
+        let pattern = currentPatterns[max(0, min(patternIndex, currentPatterns.count - 1))]
 
         // Проверяем, должен ли быть звук в данном моменте согласно паттерну
         // Позиция внутри бита (0-1)

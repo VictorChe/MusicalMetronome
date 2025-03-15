@@ -4,7 +4,7 @@ import Foundation
 protocol AudioServiceProtocol {
     var isMonitoring: Bool { get }
     var audioLevel: Double { get }
-    func startMonitoring() 
+    func startMonitoring() throws
     func stopMonitoring()
     func notifyMetronomeClick()
 }

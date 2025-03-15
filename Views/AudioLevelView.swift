@@ -3,245 +3,83 @@ import SwiftUI
 struct AudioLevelView: View {
     var level: Double
     var isBeatDetected: Bool
-    var showWaveform: Bool
-    var beats: [Double]
-    var currentBeatPosition: Double
-    var userHits: [(time: Double, accuracy: Double)]
+    var showWaveform: Bool = true
+    var beats: [Double] = []
+    var currentBeatPosition: Double = 0
+    var userHits: [(time: Double, accuracy: Double)] = []
 
-    @State private var animatedLevel: Double = 0
-    @State private var wavePoints: [CGPoint] = []
-    @State private var isFullscreen: Bool = false
-    @State private var scrollOffset: Double = 0
+    private let barWidth: CGFloat = 3
+    private let barSpacing: CGFloat = 1
 
     var body: some View {
         GeometryReader { geometry in
-            ZStack {
-                // Фоновая подложка при полноэкранном режиме
-                if isFullscreen {
-                    Color.black.opacity(0.9)
-                        .ignoresSafeArea()
+            ZStack(alignment: .leading) {
+                // Фон
+                RoundedRectangle(cornerRadius: 5)
+                    .fill(Color.black.opacity(0.05))
+
+                // Индикатор текущего бита
+                Rectangle()
+                    .fill(Color.blue.opacity(0.3))
+                    .frame(width: 2)
+                    .offset(x: geometry.size.width * CGFloat(currentBeatPosition / Double(beats.last ?? 1.0)))
+
+                // Визуализация битов
+                ForEach(beats.indices, id: \.self) { i in
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.5))
+                        .frame(width: 1, height: geometry.size.height)
+                        .position(x: CGFloat(beats[i] / Double(beats.last ?? 1.0)) * geometry.size.width,
+                                  y: geometry.size.height / 2)
                 }
 
-                // Основной контент
-                VStack(spacing: 0) {
-                    ZStack {
-                        // Фон для спектрограммы
-                        Rectangle()
-                            .fill(isFullscreen ? Color.gray.opacity(0.1) : Color.clear)
-                            .cornerRadius(10)
+                // Визуализация попаданий пользователя
+                ForEach(userHits.indices, id: \.self) { i in
+                    let hit = userHits[i]
+                    Circle()
+                        .fill(getAccuracyColor(accuracy: hit.accuracy))
+                        .frame(width: 6, height: 6)
+                        .position(
+                            x: CGFloat(hit.time / Double(beats.last ?? 1.0)) * geometry.size.width,
+                            y: geometry.size.height * 0.5
+                        )
+                }
 
-                        // Горизонтальная центральная линия (временная шкала)
-                        Rectangle()
-                            .fill(Color.gray.opacity(0.5))
-                            .frame(height: 1)
-
-                        // Вертикальные линии для каждого бита (доли такта)
-                        HStack(spacing: 0) {
-                            ForEach(0..<min(beats.count, getVisibleBeatsCount(width: geometry.size.width)), id: \.self) { index in
-                                let adjustedIndex = getFirstVisibleBeat() + index
-                                if adjustedIndex < beats.count {
-                                    Rectangle()
-                                        .fill(isBeatActive(beats[adjustedIndex]) ? Color.red : Color.gray.opacity(0.7))
-                                        .frame(width: 1, height: geometry.size.height)
-                                        .padding(.leading, getBeatPosition(beat: beats[adjustedIndex], width: geometry.size.width) - 1)
-                                }
-                            }
-                        }
-
-                        // Отображение попаданий пользователя
-                        ForEach(userHits.indices, id: \.self) { index in
-                            let hit = userHits[index]
-                            Circle()
-                                .fill(getAccuracyColor(hit.accuracy))
-                                .frame(width: 6, height: 6)
-                                .position(
-                                    x: getBeatPosition(beat: hit.time, width: geometry.size.width),
-                                    y: geometry.size.height / 2 + (hit.accuracy > 0 ? 5 : -5) // Смещение вверх/вниз от центральной линии
-                                )
-                                .opacity(isHitVisible(hit.time) ? 1 : 0)
-                        }
-
-                        // Аудио волна (только если showWaveform == true)
-                        if showWaveform {
-                            Path { path in
-                                let height = geometry.size.height
-                                let width = geometry.size.width
-
-                                // Генерируем аудиоволну, если она еще не существует
-                                if wavePoints.isEmpty {
-                                    generateWavePoints(width: width, height: height, level: level)
-                                }
-
-                                if let firstPoint = wavePoints.first {
-                                    path.move(to: firstPoint)
-
-                                    for point in wavePoints.dropFirst() {
-                                        path.addLine(to: point)
-                                    }
-                                }
-                            }
-                            .stroke(
-                                Color.green.opacity(isBeatDetected ? 1.0 : 0.5),
-                                lineWidth: 2
-                            )
-                        }
-
-                        // Аудиометр (показывает уровень громкости)
-                        VStack {
-                            Spacer()
+                if showWaveform {
+                    // Волновой индикатор уровня звука
+                    HStack(spacing: barSpacing) {
+                        ForEach(0..<Int(geometry.size.width / (barWidth + barSpacing)), id: \.self) { i in
+                            let randomHeight = Double.random(in: 0...(isBeatDetected ? 1.0 : level))
                             Rectangle()
                                 .fill(
-                                    LinearGradient(
-                                        gradient: Gradient(colors: [Color.green, Color.yellow, Color.red]),
-                                        startPoint: .bottom,
-                                        endPoint: .top
-                                    )
+                                    isBeatDetected ?
+                                        Color.green :
+                                        Color.blue.opacity(max(0.3, level))
                                 )
-                                .frame(width: 8, height: geometry.size.height * animatedLevel)
-                                .cornerRadius(4)
-                            Spacer()
-                        }
-                        .position(x: 20, y: geometry.size.height / 2)
-                    }
-                }
-                .padding(.horizontal, 10)
-                .onTapGesture {
-                    withAnimation {
-                        isFullscreen.toggle()
-                    }
-                }
-                .gesture(
-                    DragGesture()
-                        .onChanged { value in
-                            if isFullscreen {
-                                let deltaX = value.translation.width
-                                let maxOffset = Double(beats.count - getVisibleBeatsCount(width: geometry.size.width))
-
-                                // Переводим смещение жеста в смещение битов
-                                let newOffset = scrollOffset - Double(deltaX) / 50.0
-                                scrollOffset = max(0, min(maxOffset, newOffset))
-                            }
-                        }
-                )
-                .onChange(of: level) { oldLevel, newLevel in
-                    withAnimation(.easeOut(duration: 0.1)) {
-                        animatedLevel = newLevel
-                    }
-
-                    // Обновляем волну при изменении уровня звука
-                    if showWaveform {
-                        updateWavePoints(width: geometry.size.width, height: geometry.size.height, level: newLevel)
-                    }
-                }
-                .onChange(of: currentBeatPosition) { oldPosition, newPosition in
-                    // Автоматически прокручиваем при приближении к краю видимой области
-                    if !isFullscreen {
-                        let visibleBeats = Double(getVisibleBeatsCount(width: geometry.size.width))
-                        let currentFirstBeat = Double(getFirstVisibleBeat())
-
-                        if newPosition > currentFirstBeat + visibleBeats * 0.75 {
-                            scrollOffset = max(0, Double(Int(newPosition) - Int(visibleBeats / 2)))
+                                .frame(width: barWidth, height: CGFloat(randomHeight * geometry.size.height))
                         }
                     }
+                } else {
+                    // Простой индикатор уровня для режима тапов
+                    Rectangle()
+                        .fill(
+                            isBeatDetected ?
+                                Color.green.opacity(0.8) :
+                                Color.blue.opacity(max(0.3, level))
+                        )
+                        .frame(width: geometry.size.width * CGFloat(level))
                 }
-                .frame(maxWidth: .infinity, maxHeight: isFullscreen ? nil : nil)
-                .background(
-                    isFullscreen ? Color.black.opacity(0.5) : Color.clear
-                )
-                .cornerRadius(10)
             }
         }
-        .frame(height: isFullscreen ? UIScreen.main.bounds.height * 0.8 : nil)
-        .position(x: UIScreen.main.bounds.width / 2, y: isFullscreen ? UIScreen.main.bounds.height / 2 : UIScreen.main.bounds.height / 2)
     }
 
-    // Определяет, активен ли бит (находится ли он близко к текущей позиции)
-    private func isBeatActive(_ beat: Double) -> Bool {
-        return abs(beat - currentBeatPosition) < 0.1
-    }
-
-    // Получает позицию бита на экране
-    private func getBeatPosition(beat: Double, width: CGFloat) -> CGFloat {
-        let visibleBeatsCount = CGFloat(getVisibleBeatsCount(width: width))
-        let firstVisibleBeat = CGFloat(getFirstVisibleBeat())
-        let relativeBeatPosition = CGFloat(beat) - firstVisibleBeat
-
-        return (relativeBeatPosition / visibleBeatsCount) * width
-    }
-
-    // Определяет, видимо ли попадание в текущем окне просмотра
-    private func isHitVisible(_ time: Double) -> Bool {
-        let firstVisibleBeat = Double(getFirstVisibleBeat())
-        let visibleBeatsCount = Double(getVisibleBeatsCount(width: UIScreen.main.bounds.width))
-
-        return time >= firstVisibleBeat && time <= (firstVisibleBeat + visibleBeatsCount)
-    }
-
-    // Возвращает цвет на основе точности попадания
-    private func getAccuracyColor(_ accuracy: Double) -> Color {
+    private func getAccuracyColor(accuracy: Double) -> Color {
         if accuracy <= 0.05 {
-            return Color.green
+            return .green
         } else if accuracy <= 0.15 {
-            return Color.blue
+            return .blue
         } else {
-            return Color.orange
-        }
-    }
-
-    // Генерирует точки для аудиоволны
-    private func generateWavePoints(width: CGFloat, height: CGFloat, level: Double) {
-        wavePoints = []
-        let centerY = height / 2
-        let steps = 50
-
-        for i in 0...steps {
-            let x = (width / CGFloat(steps)) * CGFloat(i)
-            let amplitude = CGFloat(level) * height * 0.3
-            let y = centerY + CGFloat.random(in: -amplitude...amplitude)
-            wavePoints.append(CGPoint(x: x, y: y))
-        }
-    }
-
-    // Обновляет точки аудиоволны на основе уровня звука
-    private func updateWavePoints(width: CGFloat, height: CGFloat, level: Double) {
-        let centerY = height / 2
-        let steps = 50
-
-        var newPoints: [CGPoint] = []
-
-        for i in 0...steps {
-            let x = (width / CGFloat(steps)) * CGFloat(i)
-            let amplitude = CGFloat(level) * height * 0.3
-
-            // Создаем более реалистичную аудиоволну, зависящую от уровня звука
-            let angle = Double(i) / Double(steps) * 2 * .pi * Double.random(in: 2...4)
-            let randomFactor = Double.random(in: 0.7...1.3)
-            let waveValue = sin(angle) * randomFactor
-
-            let y = centerY + CGFloat(waveValue * Double(amplitude))
-            newPoints.append(CGPoint(x: x, y: y))
-        }
-
-        withAnimation(.easeInOut(duration: 0.1)) {
-            wavePoints = newPoints
-        }
-    }
-
-    // Возвращает количество битов, которые могут поместиться в данной ширине
-    private func getVisibleBeatsCount(width: CGFloat) -> Int {
-        return 8 // Фиксированное количество для удобства чтения
-    }
-
-    // Возвращает индекс первого видимого бита на основе текущей позиции и смещения прокрутки
-    private func getFirstVisibleBeat() -> Int {
-        if isFullscreen {
-            return max(1, Int(scrollOffset))
-        } else {
-            // В обычном режиме автоматически следуем за текущей позицией
-            let currentBeat = Int(currentBeatPosition)
-            let halfVisibleBeats = getVisibleBeatsCount(width: UIScreen.main.bounds.width) / 2
-
-            return max(1, currentBeat - halfVisibleBeats)
+            return .orange
         }
     }
 }

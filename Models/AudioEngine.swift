@@ -3,495 +3,173 @@ import AVFoundation
 import Accelerate
 
 class AudioEngine: NSObject, ObservableObject {
-    private var audioEngine: AVAudioEngine?
-    private var inputNode: AVAudioInputNode?
-    private var isMonitoring = false
-    private var permissionGranted = false
+    // Аудио параметры
+    @Published var audioLevel: Double = 0.0
+    @Published var isBeatDetected: Bool = false
 
-    @Published var audioLevel: Double = 0
-    @Published var isBeatDetected = false
+    // Данные для визуализации
+    @Published var recentAudioLevels: [Double] = Array(repeating: 0.0, count: 100)
 
-    private var previousAudioLevels: [Double] = []
-    private let beatDetectionThreshold: Double = 0.15
+    // Внутренние переменные для обработки аудио
+    private var audioRecorder: AVAudioRecorder?
+    private var levelTimer: Timer?
+    private var isMonitoring: Bool = false
+    private var lastBeatTime: Date?
+    private var minimumTimeBetweenBeats: TimeInterval = 0.1
+    private var lastMetronomeClickTime: Date?
+    private var metronomeClickGracePeriod: TimeInterval = 0.05
 
-    // FFT analysis
-    private let fftSetup: FFTSetup?
-    private let log2n: Int = 12
-    private let n: Int
-    private let bufferSize: Int = 2048
-    private var dominantFrequencies: [Double] = []
-
+    // Функция для наблюдателей обнаружения звука
     var onAudioDetected: ((Double) -> Void)?
 
+    // Порог срабатывания для обнаружения удара
+    private let beatThreshold: Float = 0.2
+    private let minimumAudioLevel: Float = 0.01
+
+    // Буфер для сглаживания значений аудио
+    private var audioLevelsBuffer: [Double] = []
+    private let smoothingFactor = 5
+
     override init() {
-        n = 1 << log2n
-        fftSetup = vDSP_create_fftsetup(UInt(log2n), FFTRadix(kFFTRadix2))
         super.init()
-        requestPermission()
+        // Подготовка буфера для сглаживания звука
+        audioLevelsBuffer = Array(repeating: 0.0, count: smoothingFactor)
     }
 
-    deinit {
-        // Важно: остановить мониторинг безопасно, без переcоздания инстансов
-        if isMonitoring {
-            stopMonitoring()
-        }
-        
-        if let fftSetup = fftSetup {
-            vDSP_destroy_fftsetup(fftSetup)
-        }
-        print("AudioEngine deinit called - ресурсы безопасно освобождены")
-    }
-
-    func requestPermission() {
-        #if os(iOS)
-        if #available(iOS 17.0, *) {
-            AVAudioApplication.requestRecordPermission { [weak self] granted in
-                DispatchQueue.main.async {
-                    self?.permissionGranted = granted
-                    if granted {
-                        self?.setupAudioEngine()
-                    }
-                }
-            }
-        } else {
-            AVAudioSession.sharedInstance().requestRecordPermission { [weak self] granted in
-                DispatchQueue.main.async {
-                    self?.permissionGranted = granted
-                    if granted {
-                        self?.setupAudioEngine()
-                    }
-                }
-            }
-        }
-        #else
-        // Для macOS или других платформ
-        self.permissionGranted = true
-        self.setupAudioEngine()
-        #endif
-    }
-
-    private func setupAudioEngine() {
-        do {
-            try AVAudioSession.sharedInstance().setCategory(.playAndRecord, mode: .default)
-            try AVAudioSession.sharedInstance().setActive(true)
-
-            audioEngine = AVAudioEngine()
-            inputNode = audioEngine?.inputNode
-
-            guard let inputNode = inputNode else { return }
-
-            let inputFormat = inputNode.outputFormat(forBus: 0)
-            let recordingFormat = AVAudioFormat(
-                standardFormatWithSampleRate: inputFormat.sampleRate,
-                channels: 1
-            )
-
-            guard let recordingFormat = recordingFormat else { return }
-
-            inputNode.installTap(onBus: 0, bufferSize: UInt32(bufferSize), format: recordingFormat) { [weak self] (buffer, when) in
-                self?.processAudioBuffer(buffer)
-            }
-
-            audioEngine?.prepare()
-        } catch {
-            print("Error setting up audio engine: \(error.localizedDescription)")
-        }
-    }
-
-    enum AudioEngineError: Error {
-        case permissionDenied
-        case setupFailed
-        case alreadyMonitoring
-    }
-    
     func startMonitoring() throws {
-        guard !isMonitoring else { 
-            throw AudioEngineError.alreadyMonitoring
-        }
+        guard !isMonitoring else { return }
 
-        // Проверяем, есть ли уже разрешение
-        if permissionGranted {
-            DispatchQueue.main.async {
-                self.setupAndStartAudioEngine()
-            }
-            return
-        }
+        // Настраиваем аудио сессию
+        let audioSession = AVAudioSession.sharedInstance()
+        try audioSession.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetooth])
+        try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
 
-        // Запрашиваем разрешение на доступ к микрофону
-        #if os(iOS)
-        if #available(iOS 17.0, *) {
-            AVAudioApplication.requestRecordPermission { [weak self] granted in
-                guard let self = self, granted else {
-                    print("Нет разрешения на доступ к микрофону")
-                    return
-                }
+        // Подготавливаем временный файл для записи
+        let documentsPath = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)[0]
+        let url = URL(fileURLWithPath: documentsPath).appendingPathComponent("temp_audio.wav")
 
-                self.permissionGranted = true
-                DispatchQueue.main.async {
-                    self.setupAndStartAudioEngine()
-                }
-            }
-        } else {
-            AVAudioSession.sharedInstance().requestRecordPermission { [weak self] granted in
-                guard let self = self, granted else {
-                    print("Нет разрешения на доступ к микрофону")
-                    return
-                }
+        // Настройки записи с высоким качеством и быстрой реакцией
+        let settings: [String: Any] = [
+            AVFormatIDKey: Int(kAudioFormatLinearPCM),
+            AVSampleRateKey: 44100.0,
+            AVNumberOfChannelsKey: 1,
+            AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
+            AVLinearPCMBitDepthKey: 16,
+            AVLinearPCMIsFloatKey: false,
+            AVLinearPCMIsBigEndianKey: false
+        ]
 
-                self.permissionGranted = true
-                DispatchQueue.main.async {
-                    self.setupAndStartAudioEngine()
-                }
-            }
-        }
-        #else
-        // Для macOS или других платформ
-        self.permissionGranted = true
-        DispatchQueue.main.async {
-            self.setupAndStartAudioEngine()
-        }
-        #endif
-    }
-
-    private func setupAndStartAudioEngine() {
-        // Если аудио движок уже запущен, останавливаем его для предотвращения конфликтов
-        if isMonitoring {
-            stopMonitoring()
-        }
-
-        // Если аудио движок не создан, создаем его
-        if audioEngine == nil {
-            setupAudioEngine()
-        }
-
-        guard let audioEngine = audioEngine else {
-            print("Не удалось создать аудио движок")
-            return
-        }
-
+        // Создаем рекордер
         do {
-            // Конфигурируем аудио сессию для совместимости с метрономом
-            let options: AVAudioSession.CategoryOptions = [.mixWithOthers, .allowBluetooth, .defaultToSpeaker]
-            try AVAudioSession.sharedInstance().setCategory(.playAndRecord, mode: .measurement, options: options)
-            try AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
+            audioRecorder = try AVAudioRecorder(url: url, settings: settings)
+            audioRecorder?.prepareToRecord()
+            audioRecorder?.isMeteringEnabled = true
 
-            // Очищаем буфер предыдущих уровней
-            previousAudioLevels.removeAll()
+            // Запускаем запись
+            if audioRecorder?.record() == true {
+                isMonitoring = true
 
-            // Подготавливаем аудио движок с таймаутом
-            audioEngine.prepare()
-
-            // Более надежный запуск с повторными попытками
-            var startAttempts = 0
-            let maxAttempts = 3
-
-            func attemptStart() {
-                do {
-                    try audioEngine.start()
-                    isMonitoring = true
-                    print("Аудио мониторинг успешно запущен")
-                } catch {
-                    startAttempts += 1
-                    if startAttempts < maxAttempts {
-                        print("Попытка \(startAttempts) запуска аудио движка не удалась: \(error.localizedDescription). Повторная попытка...")
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                            attemptStart()
-                        }
-                    } else {
-                        print("Не удалось запустить аудио движок после \(maxAttempts) попыток: \(error.localizedDescription)")
-                    }
+                // Запускаем таймер для проверки уровня аудио
+                levelTimer = Timer.scheduledTimer(withTimeInterval: 0.03, repeats: true) { [weak self] _ in
+                    self?.checkAudioLevel()
                 }
+                print("Мониторинг аудио запущен")
+            } else {
+                throw NSError(domain: "AudioEngineErrorDomain", code: 1, userInfo: [NSLocalizedDescriptionKey: "Не удалось запустить запись аудио"])
             }
-
-            attemptStart()
         } catch {
-            print("Ошибка при настройке аудио сессии: \(error.localizedDescription)")
+            throw error
         }
     }
 
     func stopMonitoring() {
-        guard let audioEngine = audioEngine, isMonitoring else { 
-            print("Аудио мониторинг уже остановлен или движок не инициализирован")
-            return 
-        }
+        guard isMonitoring else { return }
 
-        // Безопасное удаление тапа и остановка движка
-        // Используем синхронное выполнение, чтобы гарантировать завершение остановки
-        if isMonitoring {
-            print("Останавливаем аудио мониторинг...")
-            
-            // Сначала отмечаем, что мониторинг остановлен, чтобы предотвратить повторные вызовы
-            isMonitoring = false
-            
-            // Используем синхронный вызов для гарантированной остановки
-            if let inputNode = self.inputNode {
-                inputNode.removeTap(onBus: 0)
+        // Останавливаем таймер и запись
+        levelTimer?.invalidate()
+        levelTimer = nil
+
+        audioRecorder?.stop()
+        audioRecorder = nil
+
+        isMonitoring = false
+        print("Мониторинг аудио остановлен")
+
+        // Сбрасываем состояние
+        audioLevel = 0.0
+        isBeatDetected = false
+        lastBeatTime = nil
+
+        // Освобождаем аудио сессию с задержкой
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            do {
+                try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            } catch {
+                print("Ошибка при деактивации аудио сессии: \(error)")
             }
-            
-            audioEngine.stop()
-            
-            // Не деактивируем сессию полностью, чтобы не конфликтовать с метрономом
-            print("Аудио мониторинг успешно остановлен")
         }
     }
 
-    private func processAudioBuffer(_ buffer: AVAudioPCMBuffer) {
-        guard let channelData = buffer.floatChannelData?[0] else { return }
-        let frameLength = Int(buffer.frameLength)
-
-        var sum: Float = 0
-        vDSP_maxmgv(channelData, 1, &sum, vDSP_Length(frameLength))
-
-        performFFT(on: channelData, frameCount: frameLength)
-
-        let currentLevel = Double(sum)
-        DispatchQueue.main.async {
-            self.audioLevel = currentLevel
-
-            self.previousAudioLevels.append(currentLevel)
-            if self.previousAudioLevels.count > 5 {
-                self.previousAudioLevels.removeFirst()
-            }
-
-            self.detectBeat(currentLevel: currentLevel)
-        }
+    // Метод для уведомления о клике метронома (чтобы избежать ложных срабатываний)
+    func notifyMetronomeClick() {
+        lastMetronomeClickTime = Date()
     }
 
-    // Время последнего обнаружения звука
-    private var lastBeatDetectionTime: Date?
-    // Минимальный интервал между звуками для предотвращения множественных обнаружений
-    private let minimumBeatInterval: TimeInterval = 0.15 // 150 мс
+    private func checkAudioLevel() {
+        guard isMonitoring, let recorder = audioRecorder else { return }
 
-    private func detectBeat(currentLevel: Double) {
-        guard previousAudioLevels.count > 2 else { return }
+        recorder.updateMeters()
 
-        // Обновляем визуальный индикатор на основе громкости, даже если не обрабатываем звук как бит
-        if currentLevel > 0.01 {
-            // Применяем визуальную индикацию для обратной связи пользователю
-            isBeatDetected = true
-            // Быстрый сброс индикатора для лучшей визуальной обратной связи
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                self.isBeatDetected = false
-            }
-        }
-        
-        // Динамический порог с повышенной чувствительностью
-        let averageLevel = previousAudioLevels.reduce(0, +) / Double(previousAudioLevels.count)
-        let dynamicThreshold = averageLevel * 1.2 // Снижаем коэффициент для еще большей чувствительности
+        // Получаем уровень звука (в децибелах)
+        let avgPower = recorder.averagePower(forChannel: 0)
+        let peakPower = recorder.peakPower(forChannel: 0)
 
-        // Проверяем, не является ли сигнал эхом метронома
-        if isLikelyMetronomeEcho() {
-            print("Игнорирование вероятного эха метронома")
+        // Проверяем, не близко ли это к клику метронома
+        if let lastClickTime = lastMetronomeClickTime,
+           Date().timeIntervalSince(lastClickTime) < metronomeClickGracePeriod {
+            // Игнорируем звуки, близкие к кликам метронома
             return
         }
 
-        // Адаптивный порог для предотвращения ложных срабатываний
-        let previousAverage = previousAudioLevels.prefix(previousAudioLevels.count - 1).reduce(0, +) 
-                           / Double(previousAudioLevels.count - 1)
+        // Преобразуем децибелы в линейную шкалу (0-1)
+        let linearLevel = pow(10.0, avgPower / 20.0)
 
-        // Уменьшаем порог еще больше для повышенной чувствительности
-        let adjustedThreshold = beatDetectionThreshold * 0.12
+        // Нормализуем уровень звука до диапазона 0-1
+        let normalizedLevel = min(max(0.0, Double(linearLevel) * 5.0), 1.0)
 
-        // Расширенные проверки, включая анализ изменения громкости
-        let isVolumeSpike = currentLevel > (previousAverage + adjustedThreshold)
-        let isLoudEnough = currentLevel > 0.02 // Дополнительно снижаем порог громкости
+        // Сглаживаем значения для более стабильного отображения
+        audioLevelsBuffer.removeFirst()
+        audioLevelsBuffer.append(normalizedLevel)
 
-        // Проверяем наличие музыкальных частот для фильтрации шума
-        let hasInstrumentSound = hasMusicalFrequencies()
+        // Применяем скользящее среднее
+        let smoothedLevel = audioLevelsBuffer.reduce(0.0, +) / Double(audioLevelsBuffer.count)
 
-        // Анализируем громкость для определения акцентированных звуков
-        let isAccent = currentLevel > averageLevel * 1.5 // Снижаем порог для акцентов
+        // Обновляем публикуемое значение уровня аудио
+        audioLevel = smoothedLevel
 
-        // Отладочная информация
-        print("Аудио: \(currentLevel), средний: \(previousAverage), порог: \(adjustedThreshold), музыкальность: \(hasInstrumentSound), акцент: \(isAccent)")
+        // Добавляем значение в массив для визуализации
+        recentAudioLevels.removeFirst()
+        recentAudioLevels.append(smoothedLevel)
 
-        // Улучшенная проверка временного интервала с динамическим порогом
-        if let lastTime = lastBeatDetectionTime {
-            let timeSinceLastBeat = Date().timeIntervalSince(lastTime)
+        // Проверяем на резкий скачок громкости, указывающий на удар
+        let isBeat = linearLevel > beatThreshold &&
+                    (lastBeatTime == nil ||
+                     Date().timeIntervalSince(lastBeatTime!) > minimumTimeBetweenBeats)
 
-            // Уменьшаем минимальный интервал для большей чувствительности
-            let dynamicInterval = max(minimumBeatInterval * 0.6, minimumBeatInterval - (currentLevel * 0.07))
-
-            if timeSinceLastBeat < dynamicInterval {
-                // Если это очень сильный сигнал (ударение), обрабатываем его в любом случае
-                if currentLevel > dynamicThreshold * 1.5 {
-                    print("Обнаружен очень сильный сигнал (\(currentLevel)), игнорируем минимальный интервал")
-                } else {
-                    print("Слишком частое обнаружение звука (прошло \(timeSinceLastBeat)с), игнорируем")
-                    // Все равно отправляем событие, чтобы засчитать как "мимо"
-                    DispatchQueue.main.async {
-                        self.onAudioDetected?(currentLevel)
-                    }
-                    return
-                }
-            }
-        }
-
-        // Снижаем требования для определения бита
-        if (isVolumeSpike && isLoudEnough) || isAccent {
-            print("✓ ОБНАРУЖЕН БИТ: уровень=\(currentLevel), порог=\(previousAverage + adjustedThreshold)")
+        if isBeat {
+            // Обновляем время последнего удара
+            lastBeatTime = Date()
             isBeatDetected = true
-            lastBeatDetectionTime = Date()
 
-            // Немедленно уведомляем о событии
-            DispatchQueue.main.async {
-                self.onAudioDetected?(currentLevel)
+            // Вызываем обработчик события
+            if linearLevel > minimumAudioLevel {
+                onAudioDetected?(Double(linearLevel))
             }
 
-            // Увеличиваем время отображения индикатора
-            let resetTime = isAccent ? 0.3 : 0.25
-            DispatchQueue.main.asyncAfter(deadline: .now() + resetTime) {
-                self.isBeatDetected = false
+            // Сбрасываем флаг обнаружения удара через короткий промежуток
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+                self?.isBeatDetected = false
             }
         }
-    }
-
-    // Расширенный метод для анализа частот, подходящий для разных инструментов
-    private func hasMusicalFrequencies() -> Bool {
-        let musicalFrequencyRanges = [
-            (50.0, 200.0),    // Bass drum, низкие ноты гитары/баса
-            (200.0, 500.0),   // Snare, средние ноты гитары
-            (500.0, 1200.0),  // Средние частоты многих инструментов
-            (1200.0, 5000.0), // Высокие частоты гитары и других инструментов
-            (5000.0, 12000.0) // Hi-hat and cymbals
-        ]
-
-        for freq in dominantFrequencies {
-            for range in musicalFrequencyRanges {
-                if freq >= range.0 && freq <= range.1 {
-                    return true
-                }
-            }
-        }
-
-        return false
-    }
-
-    private func performFFT(on buffer: UnsafeMutablePointer<Float>, frameCount: Int) {
-        let bufferSize = min(frameCount, self.bufferSize)
-
-        var realPart = [Float](repeating: 0, count: n)
-        var imagPart = [Float](repeating: 0, count: n)
-        // Удалена неиспользуемая переменная realOutput
-
-        // Copy audio data to real part of input buffer
-        for i in 0..<bufferSize {
-            realPart[i] = buffer[i]
-        }
-
-        // Apply Hann window
-        var window = [Float](repeating: 0, count: bufferSize)
-        vDSP_hann_window(&window, vDSP_Length(bufferSize), Int32(vDSP_HANN_NORM))
-        vDSP_vmul(realPart, 1, window, 1, &realPart, 1, vDSP_Length(bufferSize))
-
-        // Perform FFT
-        realPart.withUnsafeMutableBufferPointer { realPtr in
-            imagPart.withUnsafeMutableBufferPointer { imagPtr in
-                var complex = DSPSplitComplex(realp: realPtr.baseAddress!, imagp: imagPtr.baseAddress!)
-                let setup = fftSetup!
-
-                // Forward FFT
-                vDSP_fft_zrip(setup, &complex, 1, vDSP_Length(log2n), FFTDirection(kFFTDirection_Forward))
-
-                // Calculate magnitude
-                var magnitudes = [Float](repeating: 0, count: n/2)
-                vDSP_zvmags(&complex, 1, &magnitudes, 1, vDSP_Length(n/2))
-
-                // Find dominant frequencies
-                dominantFrequencies = findDominantFrequencies(magnitudes, frameCount: frameCount)
-            }
-        }
-    }
-
-    private func findDominantFrequencies(_ magnitudes: [Float], frameCount: Int) -> [Double] {
-        var peaks: [(frequency: Double, magnitude: Float)] = []
-        let sampleRate = 44100.0
-
-        for i in 1..<(magnitudes.count - 1) {
-            if magnitudes[i] > magnitudes[i-1] && magnitudes[i] > magnitudes[i+1] && magnitudes[i] > 0.01 {
-                let frequency = Double(i) * sampleRate / Double(n)
-                peaks.append((frequency, magnitudes[i]))
-            }
-        }
-
-        peaks.sort { $0.magnitude > $1.magnitude }
-        return peaks.prefix(5).map { $0.frequency }
-    }
-
-    private func hasDrumLikeFrequencies() -> Bool {
-        let drumFrequencyRanges = [
-            (50.0, 200.0),    // Bass drum
-            (200.0, 400.0),   // Snare (low)
-            (900.0, 5000.0),  // Claps, snare (high)
-            (5000.0, 12000.0) // Hi-hat and cymbals
-        ]
-
-        for freq in dominantFrequencies {
-            for range in drumFrequencyRanges {
-                if freq >= range.0 && freq <= range.1 {
-                    return true
-                }
-            }
-        }
-
-        return false
-    }
-
-    // Время последнего клика метронома
-    private var lastMetronomeClickTime: Date?
-    private let metronomeEchoWindow: TimeInterval = 0.25 // 250 мс окно для фильтрации эха
-
-    // Характеристики звука метронома для распознавания
-    private var metronomeAudioProfile: [Double] = []
-    private var isMetronomeProfileLearned = false
-
-    // Метод, вызываемый метрономом при воспроизведении клика
-    func notifyMetronomeClick() {
-        lastMetronomeClickTime = Date()
-        print("Получено уведомление о клике метронома")
-
-        // При первых 5 кликах метронома собираем данные о его звуковом профиле
-        if !isMetronomeProfileLearned && metronomeAudioProfile.count < 5 {
-            // Запоминаем текущий аудио уровень и частотный профиль для распознавания
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) { [weak self] in
-                if let level = self?.audioLevel, level > 0.01 {
-                    self?.metronomeAudioProfile.append(level)
-                    print("Добавлена информация о профиле метронома: \(level)")
-
-                    if self?.metronomeAudioProfile.count == 5 {
-                        self?.isMetronomeProfileLearned = true
-                        print("Профиль звука метронома изучен")
-                    }
-                }
-            }
-        }
-    }
-
-    // Метод для определения, является ли обнаруженный звук вероятным эхом метронома
-    private func isLikelyMetronomeEcho() -> Bool {
-        guard let lastClick = lastMetronomeClickTime else { return false }
-
-        let timeSinceLastClick = Date().timeIntervalSince(lastClick)
-        let isWithinEchoWindow = timeSinceLastClick < metronomeEchoWindow
-
-        // Используем базовую проверку по времени
-        if isWithinEchoWindow {
-            print("Обнаружено вероятное эхо метронома: \(timeSinceLastClick) сек после клика")
-            return true
-        }
-
-        // Если есть собранный профиль звука метронома, используем его для более точного определения
-        if isMetronomeProfileLearned && !metronomeAudioProfile.isEmpty {
-            let avgMetronomeLevel = metronomeAudioProfile.reduce(0, +) / Double(metronomeAudioProfile.count)
-            let levelDifference = abs(audioLevel - avgMetronomeLevel)
-
-            // Если уровень звука похож на уровень метронома с погрешностью 30%
-            if levelDifference < (avgMetronomeLevel * 0.3) {
-                print("Обнаружен звук с характеристиками метронома: \(audioLevel) vs \(avgMetronomeLevel)")
-                return true
-            }
-        }
-
-        return false
     }
 }
