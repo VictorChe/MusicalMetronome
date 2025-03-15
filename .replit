@@ -4,7 +4,7 @@ modules = ["swift-5.8"]
 channel = "stable-24_05"
 
 [workflows]
-runButton = "Build Project"
+runButton = "Compile Project"
 
 [[workflows.workflow]]
 name = "Project"
@@ -70,6 +70,27 @@ args = "swift build"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "echo \"Проект скомпилирован успешно. Для полноценного запуска требуется Xcode и iOS устройство/симулятор.\""
+
+[[workflows.workflow]]
+name = "Compile Project"
+author = 40529434
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "swift --version"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "swift package resolve"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "swift build -v"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "echo \"Проект скомпилирован для проверки. Для полноценного запуска требуется Xcode и iOS устройство/симулятор.\""
 
 [deployment]
 run = ["sh", "-c", "swift run"]

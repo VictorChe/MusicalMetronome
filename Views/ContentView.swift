@@ -1,37 +1,6 @@
 import SwiftUI
 import AVFoundation
 
-class MetronomeModel: ObservableObject {
-    @Published var isPlaying: Bool = false
-    @Published var bpm: Double = 120
-    private var timer: Timer?
-    private var audioPlayer: AVAudioPlayer?
-
-    init() {
-        // Load metronome sound here.  This would involve loading a sound file.  Replace with actual file loading code.
-        let soundURL = Bundle.main.url(forResource: "metronome", withExtension: "wav")!
-        do {
-            audioPlayer = try AVAudioPlayer(contentsOf: soundURL)
-            audioPlayer?.prepareToPlay()
-        } catch {
-            print("Error loading metronome sound: \(error)")
-        }
-    }
-
-    func start() {
-        if isPlaying { return }
-        isPlaying = true
-        timer = Timer.scheduledTimer(withTimeInterval: 60/bpm, repeats: true) { _ in
-            self.audioPlayer?.play()
-        }
-    }
-
-    func stop() {
-        isPlaying = false
-        timer?.invalidate()
-    }
-}
-
 struct SettingsView: View {
     var body: some View {
         Text("Settings")

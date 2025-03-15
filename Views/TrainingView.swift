@@ -3,7 +3,7 @@ import SwiftUI
 import AVFoundation
 
 struct TrainingView: View {
-    @ObservedObject var model: MetronomeModel
+    @ObservedObject var metronomeModel: MetronomeModel
     @ObservedObject var audioEngine = AudioEngine()
     @Environment(\.dismiss) private var dismiss
     @State private var showResults = false
