@@ -35,7 +35,6 @@ struct BarsView: View {
             return Color.gray.opacity(0.3)
         }
     }
-    }
 }
 
 struct AudioLevelView: View {
@@ -119,7 +118,7 @@ struct WaveformView: View {
                 context.stroke(
                     path,
                     with: .linearGradient(
-                        colors,
+                        gradient,
                         startPoint: CGPoint(x: 0, y: midHeight),
                         endPoint: CGPoint(x: width, y: midHeight)
                     ),
