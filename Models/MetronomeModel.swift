@@ -423,7 +423,7 @@ class MetronomeModel: ObservableObject {
         let currentTime = Date().timeIntervalSince1970
 
         // Компенсация системной задержки
-        let systemLatency = 0.02 // 20ms базовая системная задержка
+        let _ = 0.02 // 20ms базовая системная задержка (не используется)
 
         // Получаем текущее время с момента начала
         guard let startTime = startTime else {

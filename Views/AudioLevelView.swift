@@ -152,7 +152,7 @@ struct AudioLevelView: View {
             }
         }
         .frame(height: isFullscreen ? UIScreen.main.bounds.height * 0.8 : nil)
-        .position(x: UIScreen.main.bounds.width / 2, y: isFullscreen ? UIScreen.main.bounds.height / 2 : nil)
+        .position(x: UIScreen.main.bounds.width / 2, y: isFullscreen ? UIScreen.main.bounds.height / 2 : UIScreen.main.bounds.height / 2)
     }
 
     // Определяет, активен ли бит (находится ли он близко к текущей позиции)
