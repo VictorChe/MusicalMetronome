@@ -116,7 +116,15 @@ struct WaveformView: View {
                     endPoint: UnitPoint(x: 1, y: 0.5)
                 )
                 
-                context.stroke(path, with: .linearGradient(linearGradient, startPoint: CGPoint(x: 0, y: midHeight), endPoint: CGPoint(x: width, y: midHeight)), style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
+                context.stroke(
+                    path,
+                    with: .linearGradient(
+                        colors,
+                        startPoint: CGPoint(x: 0, y: midHeight),
+                        endPoint: CGPoint(x: width, y: midHeight)
+                    ),
+                    style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round)
+                )
                 
                 if level > 0.1 {
                     context.fill(
