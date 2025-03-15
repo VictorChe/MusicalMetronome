@@ -5,7 +5,6 @@ import PackageDescription
 let package = Package(
     name: "RhythmTrainer",
     platforms: [
-        .iOS(.v15),
         .macOS(.v12)
     ],
     products: [
@@ -18,10 +17,7 @@ let package = Package(
             dependencies: [],
             path: ".",
             exclude: ["Tests", ".build", "attached_assets", ".gitignore", ".replit", "README.md", "generated-icon.png"],
-            sources: ["Models", "Views", "Sources"],
-            resources: [
-                .process("Resources")
-            ]
+            sources: ["Models", "Views", "Sources/RhythmTrainer"]
         ),
         .testTarget(
             name: "RhythmTrainerTests",

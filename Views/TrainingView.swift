@@ -2,8 +2,6 @@
 import SwiftUI
 import AVFoundation
 
-import SwiftUI
-
 struct TrainingView: View {
     @ObservedObject var model: MetronomeModel
     @ObservedObject var audioEngine = AudioEngine()
