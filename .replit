@@ -36,6 +36,10 @@ mode = "sequential"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
+args = "swift package resolve"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
 args = "swift build"
 
 [[workflows.workflow.tasks]]
