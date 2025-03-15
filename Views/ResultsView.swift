@@ -292,134 +292,117 @@ struct ResultRow: View {
 
 struct SpectrogramView: View {
     @ObservedObject var model: MetronomeModel
-    
+
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: true) {
+        GeometryReader { geometry in
             ZStack {
-                // Подложка
-                Rectangle()
-                    .fill(Color.black.opacity(0.05))
-                    .frame(width: max(UIScreen.main.bounds.width, CGFloat(model.totalBeats) * 50))
-                    .frame(height: 200)
-                
-                GeometryReader { geometry in
-                    let totalWidth = max(geometry.size.width, CGFloat(model.totalBeats) * 50)
-                    let visibleBeats = min(8, model.totalBeats)
-                    let beatWidth = min(geometry.size.width / CGFloat(visibleBeats), 50)
-                    
-                    ZStack {
-                        // Фон с сеткой тактов
-                        VStack(spacing: 0) {
-                            ForEach(0..<4, id: \.self) { _ in
-                                Rectangle()
-                                    .stroke(Color.gray.opacity(0.5), lineWidth: 0.5)
-                                    .frame(height: geometry.size.height / 4)
-                            }
-                        }
-
-                        // Вертикальные линии для обозначения долей
-                        HStack(spacing: 0) {
-                            ForEach(0..<model.totalBeats, id: \.self) { beatIndex in
-                                Rectangle()
-                                    .stroke(Color.gray.opacity(0.8), lineWidth: beatIndex % 4 == 0 ? 1.0 : 0.5)
-                                    .frame(width: beatWidth)
-                            }
-                        }
-                        .frame(width: totalWidth)
-
-                        // Аудио спектрограмма (только для режима микрофона)
-                        if model.mode == .microphone {
-                            Path { path in
-                                // Создаем волнистую линию, имитирующую аудио волну
-                                let stepX = totalWidth / CGFloat(100)
-                                let midY = geometry.size.height / 2
-                                let startPoint = CGPoint(x: 0, y: midY)
-
-                                path.move(to: startPoint)
-
-                                for i in 1...100 {
-                                    let x = CGFloat(i) * stepX
-                                    // Симуляция аудио волны с различной амплитудой
-                                    let amplitude = CGFloat(15 + (sin(Double(i) * 0.5) * 10) + Double.random(in: -5...5))
-                                    let y = midY + (i % 2 == 0 ? amplitude : -amplitude)
-
-                                    path.addLine(to: CGPoint(x: x, y: y))
-                                }
-                            }
-                            .stroke(Color.purple.opacity(0.3), style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
-                        }
-
-                        // Клики метронома
-                        ForEach(0..<model.totalBeats, id: \.self) { beatIndex in
-                            Circle()
-                                .fill(Color.red)
-                                .frame(width: 8, height: 8)
-                                .position(
-                                    x: (CGFloat(beatIndex) + 0.5) * beatWidth,
-                                    y: geometry.size.height / 2
-                                )
-                                .overlay(
-                                    Text("\(beatIndex + 1)")
-                                        .font(.system(size: 8))
-                                        .foregroundColor(.white)
-                                        .offset(y: -15)
-                                )
-                        }
-                        
-                        // Идеальные попадания - отображаем на соответствующих долях
-                        ForEach(0..<model.perfectHits, id: \.self) { index in
-                            // Распределяем хиты на соответствующие доли
-                            let beatPosition = (CGFloat(index % model.totalBeats) + 0.5) * beatWidth
-                            Circle()
-                                .fill(Color.green)
-                                .frame(width: 10, height: 10)
-                                .position(
-                                    x: beatPosition,
-                                    y: geometry.size.height / 2 + 20
-                                )
-                        }
-                        
-                        // Хорошие попадания
-                        ForEach(0..<model.goodHits, id: \.self) { index in
-                            let beatPosition = (CGFloat((index + 2) % model.totalBeats) + 0.5) * beatWidth
-                            Circle()
-                                .fill(Color.blue)
-                                .frame(width: 10, height: 10)
-                                .position(
-                                    x: beatPosition,
-                                    y: geometry.size.height / 2 + 20
-                                )
-                        }
-                        
-                        // Неточные попадания
-                        ForEach(0..<model.missedHits, id: \.self) { index in
-                            let beatPosition = (CGFloat((index + 4) % model.totalBeats) + 0.5) * beatWidth
-                            Circle()
-                                .fill(Color.orange)
-                                .frame(width: 10, height: 10)
-                                .position(
-                                    x: beatPosition,
-                                    y: geometry.size.height / 2 + 35
-                                )
-                        }
-                        
-                        // Попадания мимо
-                        ForEach(0..<model.extraHits, id: \.self) { index in
-                            let beatPosition = (CGFloat((index + 6) % model.totalBeats) + 0.5) * beatWidth
-                            Circle()
-                                .fill(Color.purple)
-                                .frame(width: 10, height: 10)
-                                .position(
-                                    x: beatPosition,
-                                    y: geometry.size.height / 2 + 50
-                                )
-                        }
+                // Фон с сеткой тактов
+                VStack(spacing: 0) {
+                    ForEach(0..<4, id: \.self) { _ in
+                        Rectangle()
+                            .stroke(Color.gray.opacity(0.5), lineWidth: 0.5)
+                            .frame(height: geometry.size.height / 4)
                     }
-                    .frame(width: totalWidth)
                 }
-                .frame(height: 200)
+
+                HStack(spacing: 0) {
+                    ForEach(0..<model.totalBeats, id: \.self) { beatIndex in
+                        Rectangle()
+                            .stroke(Color.gray.opacity(0.5), lineWidth: 0.5)
+                            .frame(width: geometry.size.width / CGFloat(model.totalBeats))
+                    }
+                }
+
+                // Аудио спектрограмма (упрощенная визуализация)
+                Path { path in
+                    // Создаем волнистую линию, имитирующую аудио волну
+                    let stepX = geometry.size.width / CGFloat(50)
+                    let midY = geometry.size.height / 2
+                    let startPoint = CGPoint(x: 0, y: midY)
+
+                    path.move(to: startPoint)
+
+                    for i in 1...50 {
+                        let x = CGFloat(i) * stepX
+                        // Симуляция аудио волны с различной амплитудой, учитывая интенсивность ударов
+                        let amplitude = CGFloat(15 + (sin(Double(i) * 0.5) * 10) + Double.random(in: -5...5))
+                        let y = midY + (i % 2 == 0 ? amplitude : -amplitude)
+
+                        path.addLine(to: CGPoint(x: x, y: y))
+                    }
+                }
+                .stroke(Color.purple.opacity(0.3), style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+
+                // Клики метронома
+                ForEach(0..<model.totalBeats, id: \.self) { beatIndex in
+                    Circle()
+                        .fill(Color.red)
+                        .frame(width: 8, height: 8)
+                        .position(
+                            x: (CGFloat(beatIndex) + 0.5) * geometry.size.width / CGFloat(model.totalBeats),
+                            y: geometry.size.height / 2
+                        )
+                        .overlay(
+                            Text("\(beatIndex + 1)")
+                                .font(.system(size: 8))
+                                .foregroundColor(.white)
+                                .offset(y: -15)
+                        )
+                }
+                
+                // Визуализация пользовательских попаданий
+                // Идеальные попадания
+                ForEach(0..<model.perfectHits, id: \.self) { index in
+                    // Распределяем хиты равномерно для визуализации
+                    let beatPosition = CGFloat(index + 1) * geometry.size.width / CGFloat(max(1, model.perfectHits + 1))
+                    Circle()
+                        .fill(Color.green)
+                        .frame(width: 10, height: 10)
+                        .position(
+                            x: beatPosition,
+                            y: geometry.size.height / 2 + 20
+                        )
+                }
+                
+                // Хорошие попадания
+                ForEach(0..<model.goodHits, id: \.self) { index in
+                    // Распределяем хиты равномерно для визуализации
+                    let beatPosition = CGFloat(index + 1) * geometry.size.width / CGFloat(max(1, model.goodHits + 1))
+                    Circle()
+                        .fill(Color.blue)
+                        .frame(width: 10, height: 10)
+                        .position(
+                            x: beatPosition,
+                            y: geometry.size.height / 2 + 20
+                        )
+                }
+                
+                // Неточные попадания
+                ForEach(0..<model.missedHits, id: \.self) { index in
+                    // Распределяем хиты равномерно для визуализации
+                    let beatPosition = CGFloat(index + 1) * geometry.size.width / CGFloat(max(1, model.missedHits + 1))
+                    Circle()
+                        .fill(Color.orange)
+                        .frame(width: 10, height: 10)
+                        .position(
+                            x: beatPosition,
+                            y: geometry.size.height / 2 + 35
+                        )
+                }
+                
+                // Попадания мимо
+                ForEach(0..<model.extraHits, id: \.self) { index in
+                    // Распределяем хиты равномерно для визуализации
+                    let beatPosition = CGFloat(index + 1) * geometry.size.width / CGFloat(max(1, model.extraHits + 1))
+                    Circle()
+                        .fill(Color.purple)
+                        .frame(width: 10, height: 10)
+                        .position(
+                            x: beatPosition,
+                            y: geometry.size.height / 2 + 50
+                        )
+                }
             }
-            .frame(height: 200)
         }
     }
 }
@@ -447,47 +430,41 @@ struct ZoomableSpectrogramView: View {
     @State private var lastOffset = CGPoint.zero
 
     var body: some View {
-        ZStack {
-            // Добавляем тёмную подложку для полноэкранного режима
-            Color.black.opacity(0.95)
-                .edgesIgnoringSafeArea(.all)
-            
-            SpectrogramView(model: model)
-                .scaleEffect(scale)
-                .offset(x: offset.x, y: offset.y)
-                .gesture(
-                    MagnificationGesture()
-                        .onChanged { value in
-                            let delta = value / lastScale
-                            lastScale = value
-                            scale = min(max(scale * delta, 1.0), 5.0)
-                        }
-                        .onEnded { _ in
-                            lastScale = 1.0
-                        }
-                )
-                .simultaneousGesture(
-                    DragGesture()
-                        .onChanged { value in
-                            if scale > 1.0 {
-                                offset = CGPoint(
-                                    x: lastOffset.x + value.translation.width,
-                                    y: lastOffset.y + value.translation.height
-                                )
-                            }
-                        }
-                        .onEnded { _ in
-                            lastOffset = offset
-                        }
-                )
-                .onTapGesture(count: 2) {
-                    withAnimation {
-                        scale = 1.0
-                        offset = .zero
-                        lastOffset = .zero
+        SpectrogramView(model: model)
+            .scaleEffect(scale)
+            .offset(x: offset.x, y: offset.y)
+            .gesture(
+                MagnificationGesture()
+                    .onChanged { value in
+                        let delta = value / lastScale
+                        lastScale = value
+                        scale = min(max(scale * delta, 1.0), 5.0)
                     }
+                    .onEnded { _ in
+                        lastScale = 1.0
+                    }
+            )
+            .simultaneousGesture(
+                DragGesture()
+                    .onChanged { value in
+                        if scale > 1.0 {
+                            offset = CGPoint(
+                                x: lastOffset.x + value.translation.width,
+                                y: lastOffset.y + value.translation.height
+                            )
+                        }
+                    }
+                    .onEnded { _ in
+                        lastOffset = offset
+                    }
+            )
+            .onTapGesture(count: 2) {
+                withAnimation {
+                    scale = 1.0
+                    offset = .zero
+                    lastOffset = .zero
                 }
-        }
+            }
     }
 }
 

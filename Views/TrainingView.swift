@@ -149,35 +149,9 @@ struct TrainingView: View {
                     }
                     .padding(.vertical)
                 } else {
-                    VStack(spacing: 5) {
-                        Text("Уровень звука: \(Int(audioEngine.audioLevel * 100))%")
-                            .font(.caption)
-                            .foregroundColor(audioEngine.isBeatDetected ? .green : .gray)
-                        
-                        AudioLevelView(level: audioEngine.audioLevel)
-                            .frame(height: 80)
-                            .overlay(
-                                // Визуальный индикатор обнаружения звука
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(audioEngine.isBeatDetected ? Color.green : Color.clear, lineWidth: 3)
-                                    .animation(.easeInOut(duration: 0.2), value: audioEngine.isBeatDetected)
-                            )
-                        
-                        // Индикатор обнаружения звука
-                        HStack(spacing: 10) {
-                            Circle()
-                                .fill(audioEngine.isBeatDetected ? Color.green : Color.gray.opacity(0.3))
-                                .frame(width: 12, height: 12)
-                                .animation(.easeInOut(duration: 0.2), value: audioEngine.isBeatDetected)
-                            
-                            Text(audioEngine.isBeatDetected ? "Звук обнаружен!" : "Ожидание звука...")
-                                .font(.caption)
-                                .foregroundColor(audioEngine.isBeatDetected ? .green : .gray)
-                        }
-                    }
-                    .padding(.vertical)
-                    .background(Color.black.opacity(0.05))
-                    .cornerRadius(10)
+                    AudioLevelView(level: audioEngine.audioLevel)
+                        .frame(height: 100)
+                        .padding(.vertical)
                 }
 
                 Button(role: .destructive) {

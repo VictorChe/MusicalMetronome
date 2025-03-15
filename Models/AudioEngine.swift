@@ -265,19 +265,9 @@ class AudioEngine: NSObject, ObservableObject {
     private func detectBeat(currentLevel: Double) {
         guard previousAudioLevels.count > 2 else { return }
 
-        // Обновляем визуальный индикатор на основе громкости, даже если не обрабатываем звук как бит
-        if currentLevel > 0.01 {
-            // Применяем визуальную индикацию для обратной связи пользователю
-            isBeatDetected = true
-            // Быстрый сброс индикатора для лучшей визуальной обратной связи
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                self.isBeatDetected = false
-            }
-        }
-        
-        // Динамический порог с повышенной чувствительностью
+        // Динамический порог на основе предыдущих уровней с увеличенной чувствительностью
         let averageLevel = previousAudioLevels.reduce(0, +) / Double(previousAudioLevels.count)
-        let dynamicThreshold = averageLevel * 1.2 // Снижаем коэффициент для еще большей чувствительности
+        let dynamicThreshold = averageLevel * 1.3 // Немного снижаем коэффициент для большей чувствительности
 
         // Проверяем, не является ли сигнал эхом метронома
         if isLikelyMetronomeEcho() {
@@ -289,18 +279,18 @@ class AudioEngine: NSObject, ObservableObject {
         let previousAverage = previousAudioLevels.prefix(previousAudioLevels.count - 1).reduce(0, +) 
                            / Double(previousAudioLevels.count - 1)
 
-        // Уменьшаем порог еще больше для повышенной чувствительности
-        let adjustedThreshold = beatDetectionThreshold * 0.12
+        // Уменьшаем порог для большей чувствительности, но компенсируем другими проверками
+        let adjustedThreshold = beatDetectionThreshold * 0.15
 
         // Расширенные проверки, включая анализ изменения громкости
         let isVolumeSpike = currentLevel > (previousAverage + adjustedThreshold)
-        let isLoudEnough = currentLevel > 0.02 // Дополнительно снижаем порог громкости
+        let isLoudEnough = currentLevel > 0.025 // Немного снижаем порог громкости для повышения чувствительности
 
         // Проверяем наличие музыкальных частот для фильтрации шума
         let hasInstrumentSound = hasMusicalFrequencies()
 
         // Анализируем громкость для определения акцентированных звуков
-        let isAccent = currentLevel > averageLevel * 1.5 // Снижаем порог для акцентов
+        let isAccent = currentLevel > averageLevel * 1.8
 
         // Отладочная информация
         print("Аудио: \(currentLevel), средний: \(previousAverage), порог: \(adjustedThreshold), музыкальность: \(hasInstrumentSound), акцент: \(isAccent)")
@@ -309,12 +299,12 @@ class AudioEngine: NSObject, ObservableObject {
         if let lastTime = lastBeatDetectionTime {
             let timeSinceLastBeat = Date().timeIntervalSince(lastTime)
 
-            // Уменьшаем минимальный интервал для большей чувствительности
-            let dynamicInterval = max(minimumBeatInterval * 0.6, minimumBeatInterval - (currentLevel * 0.07))
+            // Динамический минимальный интервал, зависящий от громкости
+            let dynamicInterval = max(minimumBeatInterval * 0.7, minimumBeatInterval - (currentLevel * 0.05))
 
             if timeSinceLastBeat < dynamicInterval {
                 // Если это очень сильный сигнал (ударение), обрабатываем его в любом случае
-                if currentLevel > dynamicThreshold * 1.5 {
+                if currentLevel > dynamicThreshold * 1.8 {
                     print("Обнаружен очень сильный сигнал (\(currentLevel)), игнорируем минимальный интервал")
                 } else {
                     print("Слишком частое обнаружение звука (прошло \(timeSinceLastBeat)с), игнорируем")
@@ -327,8 +317,8 @@ class AudioEngine: NSObject, ObservableObject {
             }
         }
 
-        // Снижаем требования для определения бита
-        if (isVolumeSpike && isLoudEnough) || isAccent {
+        // Улучшенное условие для определения бита
+        if ((isVolumeSpike && isLoudEnough) || isAccent) && hasInstrumentSound {
             print("✓ ОБНАРУЖЕН БИТ: уровень=\(currentLevel), порог=\(previousAverage + adjustedThreshold)")
             isBeatDetected = true
             lastBeatDetectionTime = Date()
@@ -338,8 +328,8 @@ class AudioEngine: NSObject, ObservableObject {
                 self.onAudioDetected?(currentLevel)
             }
 
-            // Увеличиваем время отображения индикатора
-            let resetTime = isAccent ? 0.3 : 0.25
+            // Динамическое время сброса индикатора обнаружения звука
+            let resetTime = isAccent ? 0.25 : 0.2
             DispatchQueue.main.asyncAfter(deadline: .now() + resetTime) {
                 self.isBeatDetected = false
             }
