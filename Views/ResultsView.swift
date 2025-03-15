@@ -58,8 +58,9 @@ struct ResultsView: View {
                 VStack(spacing: 15) {
                     Button {
                         // Повторить тренировку с теми же настройками
+                        model.resetResults()
                         dismiss()
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                             model.startMetronome()
                         }
                     } label: {

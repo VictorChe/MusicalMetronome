@@ -31,7 +31,11 @@ struct TrainingView: View {
                 }
             }
             .navigationBarBackButtonHidden(model.isRunning || model.isCountdown)
-            .fullScreenCover(isPresented: $showResults) {
+            .fullScreenCover(isPresented: $showResults, onDismiss: {
+                if !model.isRunning {
+                    dismiss()
+                }
+            }) {
                 ResultsView(model: model)
             }
         }

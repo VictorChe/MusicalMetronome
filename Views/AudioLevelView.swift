@@ -43,6 +43,10 @@ struct AudioLevelView: View {
     var body: some View {
         VStack(spacing: 8) {
             BarsView(level: level)
+            
+            WaveformView(level: level)
+                .frame(height: 60)
+                .padding(.vertical, 5)
 
             Text("Микрофон активен")
                 .font(.caption)
