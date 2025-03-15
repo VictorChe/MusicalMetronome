@@ -65,28 +65,46 @@ class MetronomeModel: ObservableObject {
     private func setupAudio() {
         if let soundURL = Bundle.main.url(forResource: "metronome-click", withExtension: "wav") {
             do {
-                try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
-                try AVAudioSession.sharedInstance().setActive(true)
+                // Настраиваем сессию для совместимости с аудио движком
+                let options: AVAudioSession.CategoryOptions = [.mixWithOthers, .allowBluetooth, .defaultToSpeaker]
+                try AVAudioSession.sharedInstance().setCategory(.playAndRecord, mode: .default, options: options)
+                try AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
+                
+                // Создаем и подготавливаем аудио плеер
                 audioPlayer = try AVAudioPlayer(contentsOf: soundURL)
                 audioPlayer?.prepareToPlay()
+                audioPlayer?.volume = 1.0
+                
+                // Устанавливаем аудио плеер для одновременного воспроизведения нескольких звуков
+                audioPlayer?.numberOfLoops = 0
+                audioPlayer?.enableRate = false
             } catch {
-                print("Ошибка настройки аудио: \(error)")
+                print("Ошибка настройки аудио для метронома: \(error)")
             }
+        } else {
+            print("Ошибка: аудио файл метронома не найден")
         }
     }
     
     // Полная очистка ресурсов метронома
     func cleanupResources() {
+        // Останавливаем таймер
         timer?.invalidate()
         timer = nil
+        
+        // Останавливаем аудио плеер
         audioPlayer?.stop()
         
-        // Освобождаем аудио ресурсы
-        try? AVAudioSession.sharedInstance().setActive(false)
+        // Освобождаем аудио плеер, но не деактивируем сессию полностью,
+        // чтобы избежать конфликтов при быстром переключении между экранами
         audioPlayer = nil
         
-        // Пересоздаем аудио плеер
-        setupAudio()
+        // Пересоздаем аудио плеер с небольшой задержкой
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+            self?.setupAudio()
+        }
+        
+        print("Ресурсы метронома очищены")
     }
 
     func resetResults() {
@@ -153,24 +171,49 @@ class MetronomeModel: ObservableObject {
         
         print("Метроном остановлен, тренировка завершена")
         
-        // Освобождаем связь с аудиодвижком
+        // Освобождаем связь с аудиодвижком, не останавливая его работу
+        // Это предотвратит проблемы с повторным запуском
+        let engine = audioEngine
         audioEngine = nil
         
-        // Поскольку звук остановлен, сбрасываем аудиосессию
-        try? AVAudioSession.sharedInstance().setActive(false)
+        // Останавливаем мониторинг в отдельном потоке после небольшой задержки
+        // чтобы избежать блокировки UI и конфликтов аудио сессии
+        DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 0.2) {
+            engine?.stopMonitoring()
+        }
     }
 
     // Ссылка на аудио-движок для уведомления о кликах
     var audioEngine: AudioEngine?
     
     private func playTick() {
-        audioPlayer?.currentTime = 0
-        audioPlayer?.play()
+        // Проверяем, что аудио плеер существует
+        guard let player = audioPlayer else {
+            print("Плеер не инициализирован, пересоздаем")
+            setupAudio()
+            return
+        }
+        
+        // Останавливаем звук, если он воспроизводится
+        if player.isPlaying {
+            player.stop()
+        }
+        
+        // Сбрасываем позицию воспроизведения и запускаем звук
+        player.currentTime = 0
+        
+        // Воспроизводим с проверкой ошибок
+        if !player.play() {
+            print("Ошибка воспроизведения звука метронома")
+            
+            // Пробуем пересоздать аудио плеер
+            setupAudio()
+            audioPlayer?.play()
+        }
         
         // Уведомляем аудио-движок о клике метронома для фильтрации эха
         if let audioEngine = audioEngine {
             audioEngine.notifyMetronomeClick()
-            print("Отправлено уведомление о клике метронома")
         }
     }
 

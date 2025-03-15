@@ -96,6 +96,14 @@ class AudioEngine: NSObject, ObservableObject {
     func startMonitoring() {
         guard !isMonitoring else { return }
 
+        // Проверяем, есть ли уже разрешение
+        if permissionGranted {
+            DispatchQueue.main.async {
+                self.setupAndStartAudioEngine()
+            }
+            return
+        }
+
         // Запрашиваем разрешение на доступ к микрофону
         #if os(iOS)
         if #available(iOS 17.0, *) {
@@ -133,38 +141,81 @@ class AudioEngine: NSObject, ObservableObject {
     }
 
     private func setupAndStartAudioEngine() {
-        guard let audioEngine = audioEngine else {
+        // Если аудио движок уже запущен, останавливаем его для предотвращения конфликтов
+        if isMonitoring {
+            stopMonitoring()
+        }
+        
+        // Если аудио движок не создан, создаем его
+        if audioEngine == nil {
             setupAudioEngine()
-            startMonitoring()
+        }
+        
+        guard let audioEngine = audioEngine else {
+            print("Не удалось создать аудио движок")
             return
         }
 
         do {
-            // Конфигурируем аудио сессию с минимальными настройками
-            try AVAudioSession.sharedInstance().setCategory(.record, mode: .default)
-            try AVAudioSession.sharedInstance().setActive(true)
+            // Конфигурируем аудио сессию для совместимости с метрономом
+            let options: AVAudioSession.CategoryOptions = [.mixWithOthers, .allowBluetooth, .defaultToSpeaker]
+            try AVAudioSession.sharedInstance().setCategory(.playAndRecord, mode: .measurement, options: options)
+            try AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
 
             // Очищаем буфер предыдущих уровней
             previousAudioLevels.removeAll()
-
+            
+            // Подготавливаем аудио движок с таймаутом
             audioEngine.prepare()
-            try audioEngine.start()
-
-            isMonitoring = true
-            print("Аудио мониторинг успешно запущен")
+            
+            // Более надежный запуск с повторными попытками
+            var startAttempts = 0
+            let maxAttempts = 3
+            
+            func attemptStart() {
+                do {
+                    try audioEngine.start()
+                    isMonitoring = true
+                    print("Аудио мониторинг успешно запущен")
+                } catch {
+                    startAttempts += 1
+                    if startAttempts < maxAttempts {
+                        print("Попытка \(startAttempts) запуска аудио движка не удалась: \(error.localizedDescription). Повторная попытка...")
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            attemptStart()
+                        }
+                    } else {
+                        print("Не удалось запустить аудио движок после \(maxAttempts) попыток: \(error.localizedDescription)")
+                    }
+                }
+            }
+            
+            attemptStart()
         } catch {
-            print("Ошибка при запуске аудио мониторинга: \(error.localizedDescription)")
+            print("Ошибка при настройке аудио сессии: \(error.localizedDescription)")
         }
     }
 
     func stopMonitoring() {
-        guard isMonitoring, let audioEngine = audioEngine else { return }
+        guard let audioEngine = audioEngine else { return }
 
-        inputNode?.removeTap(onBus: 0)
-        audioEngine.stop()
-        try? AVAudioSession.sharedInstance().setActive(false)
-
-        isMonitoring = false
+        // Безопасное удаление тапа и остановка движка
+        if isMonitoring {
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+                
+                if let inputNode = self.inputNode {
+                    inputNode.removeTap(onBus: 0)
+                }
+                
+                audioEngine.stop()
+                
+                // Не деактивируем сессию полностью, чтобы не конфликтовать с метрономом
+                // Просто сообщаем, что мы больше не мониторим
+                self.isMonitoring = false
+                print("Аудио мониторинг остановлен")
+            }
+        }
     }
 
     private func processAudioBuffer(_ buffer: AVAudioPCMBuffer) {

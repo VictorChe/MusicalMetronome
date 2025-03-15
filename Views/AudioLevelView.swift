@@ -1,4 +1,3 @@
-
 import SwiftUI
 
 struct BarsView: View {
@@ -60,10 +59,10 @@ struct AudioLevelView: View {
 struct AnimatedWaveformView: View {
     var level: Double
     @State private var phase: Double = 0
-    
+
     // Используем таймер для гладкой анимации
     let timer = Timer.publish(every: 0.05, on: .main, in: .common).autoconnect()
-    
+
     var body: some View {
         GeometryReader { geometry in
             Canvas { context, size in
@@ -74,11 +73,11 @@ struct AnimatedWaveformView: View {
                 let amplitude = midHeight * min(CGFloat(level) * 0.8 + 0.2, 0.8)
                 let frequency: Double = 0.6 + (level * 2) // Частота зависит от уровня звука
                 let waves: Double = 5 // Количество волн
-                
+
                 // Создаем путь для волны
                 var path = Path()
                 path.move(to: CGPoint(x: 0, y: midHeight))
-                
+
                 // Рисуем волну
                 for x in stride(from: 0, to: width, by: 1) {
                     let relativeX = Double(x) / Double(width)
@@ -87,14 +86,14 @@ struct AnimatedWaveformView: View {
                     let y = midHeight + sine * CGFloat(amplitude)
                     path.addLine(to: CGPoint(x: x, y: y))
                 }
-                
+
                 // Градиент для визуализации
                 let gradient = Gradient(colors: [
                     Color.blue.opacity(0.7),
                     Color.purple.opacity(0.7),
                     Color.pink.opacity(0.7)
                 ])
-                
+
                 // Настройки отображения
                 context.stroke(
                     path,
@@ -105,11 +104,11 @@ struct AnimatedWaveformView: View {
                     ),
                     lineWidth: 3
                 )
-                
+
                 // Дополнительная волна с задержкой для эффекта объема
                 var secondPath = Path()
                 secondPath.move(to: CGPoint(x: 0, y: midHeight))
-                
+
                 for x in stride(from: 0, to: width, by: 1) {
                     let relativeX = Double(x) / Double(width)
                     let normalizedPhase = (phase - 0.5).truncatingRemainder(dividingBy: 2 * .pi)
@@ -117,7 +116,7 @@ struct AnimatedWaveformView: View {
                     let y = midHeight + sine * CGFloat(amplitude * 0.7)
                     secondPath.addLine(to: CGPoint(x: x, y: y))
                 }
-                
+
                 context.stroke(
                     secondPath,
                     with: .color(Color.purple.opacity(0.5)),

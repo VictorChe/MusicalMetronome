@@ -172,7 +172,7 @@ struct TrainingView: View {
                 .font(.title)
                 .fontWeight(.bold)
                 .padding()
-            
+
             // Автоматически показываем результаты после небольшой задержки
             Text("Загрузка результатов...")
                 .onAppear {
@@ -184,46 +184,26 @@ struct TrainingView: View {
         }
     }
 
-    func setupAudioEngine() {
+    private func setupAudioEngine() {
         if model.mode == .microphone {
-            // Устанавливаем двустороннюю связь между моделью и аудио-движком
+            // Обеспечиваем связь между метрономом и аудио движком
             model.audioEngine = audioEngine
 
-            do {
-                // Оптимизируем аудио сессию для метронома и микрофона
-                try AVAudioSession.sharedInstance().setCategory(.playAndRecord, 
-                                                              mode: .default, 
-                                                              options: [.allowBluetooth, .defaultToSpeaker])
-                try AVAudioSession.sharedInstance().setActive(true)
+            // Запускаем мониторинг аудио с задержкой после настройки метронома
+            // Это предотвратит конфликты аудио сессий
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+                guard let self = self else { return }
 
-                // Запускаем мониторинг аудио с улучшенной обработкой
-                DispatchQueue.global(qos: .userInitiated).async {
-                    self.audioEngine.startMonitoring()
-                    
-                    // Переключаемся на главный поток для обновления UI
-                    DispatchQueue.main.async {
-                        self.audioEngine.onAudioDetected = { intensity in
-                            self.handleUserAction()
-                        }
-                    }
+                // Запускаем мониторинг аудио
+                self.audioEngine.startMonitoring()
+
+                // Устанавливаем обработчик обнаружения звука
+                self.audioEngine.onAudioDetected = { [weak self] intensity in
+                    guard let self = self else { return }
+                    self.handleUserAction()
                 }
-                
+
                 print("Мониторинг аудио успешно запущен")
-            } catch {
-                // Показываем понятную ошибку пользователю
-                let errorMessage = "Ошибка доступа к микрофону: \(error.localizedDescription)"
-                print(errorMessage)
-                
-                feedback = errorMessage
-                feedbackColor = .red
-                showFeedback = true
-                
-                // Показываем ошибку дольше для важных сообщений
-                DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-                    if self.feedback == errorMessage {
-                        self.showFeedback = false
-                    }
-                }
             }
         }
     }
