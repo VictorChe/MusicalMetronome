@@ -323,21 +323,19 @@ class MetronomeModel: ObservableObject {
         let exactBeatPosition = actualElapsed / beatInterval  // Точная позиция в битах
         let nearestBeatNumber = round(exactBeatPosition)      // Ближайший целый бит
 
-        // Определяем текущий паттерн
-        let currentPatternIndex = (Int(nearestBeatNumber) - 1) % 4
-        let currentPattern = currentPatterns[currentPatternIndex]
-
         // Отклонение в долях бита (от 0 до 0.5)
         let beatDeviation = abs(exactBeatPosition - nearestBeatNumber)
         // Отклонение в секундах
         let timeDeviation = beatDeviation * beatInterval
 
+        // Определяем текущий паттерн
+        let currentPatternIndex = (Int(nearestBeatNumber) - 1) % 4
+        let currentPattern = currentPatterns[currentPatternIndex]
+        
         print("Точная позиция: \(exactBeatPosition), Ближайший бит: \(nearestBeatNumber), Текущий паттерн: \(currentPattern.rawValue), Отклонение в долях: \(beatDeviation), Отклонение в секундах: \(timeDeviation)")
 
         // Проверяем минимальный интервал между нажатиями
         // Для восьмых нот уменьшаем минимальный интервал
-        let currentPatternIndex = (Int(nearestBeatNumber) - 1) % 4
-        let currentPattern = currentPatterns[currentPatternIndex]
         let isEighthPattern = currentPattern == .eighthPair || currentPattern == .eighthTriplet
         
         let adjustedMinimumTime = isEighthPattern ? minimumTimeBetweenHits * 0.5 : minimumTimeBetweenHits
