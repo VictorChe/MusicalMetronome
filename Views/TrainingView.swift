@@ -1,4 +1,3 @@
-
 import SwiftUI
 import AVFoundation
 
@@ -25,19 +24,11 @@ struct TrainingView: View {
             }
             .padding()
             .onAppear {
-                // Сбрасываем флаг показа результатов при появлении экрана тренировки
                 showResults = false
-                
-                // Создаем задержку для предотвращения конфликтов с анимациями навигации
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    // Проверяем не завершена ли уже тренировка по какой-то причине
                     if !model.isRunning && !model.isCountdown {
-                        print("Запускаем тренировку")
-                        // Запускаем тренировку, если она не запущена
                         model.startMetronome()
                     }
-                    
-                    // Устанавливаем аудио движок после задержки
                     setupAudioEngine()
                 }
             }
@@ -48,15 +39,11 @@ struct TrainingView: View {
             }
             .navigationBarBackButtonHidden(model.isRunning || model.isCountdown)
             .fullScreenCover(isPresented: $showResults, onDismiss: {
-                // Проверяем, завершена ли тренировка
                 if !model.isRunning && !model.isCountdown {
-                    // Если завершена, возвращаемся на главный экран
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                         dismiss()
                     }
                 } else {
-                    // Если тренировка не завершена, но мы закрыли экран результатов,
-                    // убедимся, что мы не покажем его снова
                     showResults = false
                 }
             }) {
@@ -135,7 +122,6 @@ struct TrainingView: View {
                 .background(Color.gray.opacity(0.1))
                 .cornerRadius(10)
 
-                // Контейнер с фиксированной высотой для отображения обратной связи
                 ZStack {
                     if showFeedback {
                         Text(feedback)
@@ -147,7 +133,7 @@ struct TrainingView: View {
                             .animation(.easeInOut(duration: 0.2), value: showFeedback)
                     }
                 }
-                .frame(height: 50) // Фиксированная высота блока с обратной связью
+                .frame(height: 50)
 
                 if model.mode == .tap {
                     Button {
@@ -203,11 +189,8 @@ struct TrainingView: View {
                 .fontWeight(.bold)
                 .padding()
 
-            // Автоматически показываем результаты после небольшой задержки
             Text("Загрузка результатов...")
                 .onAppear {
-                    // Убедимся, что тренировка действительно завершена 
-                    // и не было повторного запуска или автоматического запуска
                     if !model.isRunning && !model.isCountdown && !showResults {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
                             showResults = true
@@ -219,26 +202,20 @@ struct TrainingView: View {
 
     private func setupAudioEngine() {
         if model.mode == .microphone {
-            // Обеспечиваем связь между метрономом и аудио движком
             model.audioEngine = audioEngine
-            
-            // Устанавливаем обратный вызов для модели метронома
             model.viewCallback = {
                 self.handleUserAction()
             }
-
-            // Запускаем мониторинг аудио с задержкой после настройки метронома
-            // Это предотвратит конфликты аудио сессий
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                // Запускаем мониторинг аудио
-                self.audioEngine.startMonitoring()
-
-                // Устанавливаем обработчик обнаружения звука
-                self.audioEngine.onAudioDetected = { intensity in
-                    self.handleUserAction()
+                do {
+                    try self.audioEngine.startMonitoring()
+                    self.audioEngine.onAudioDetected = { intensity in
+                        self.handleUserAction()
+                    }
+                    print("Мониторинг аудио успешно запущен")
+                } catch {
+                    print("Ошибка при запуске мониторинга аудио: \(error.localizedDescription)")
                 }
-
-                print("Мониторинг аудио успешно запущен")
             }
         }
     }
@@ -252,11 +229,9 @@ struct TrainingView: View {
         if model.mode == .tap {
             model.handleTap()
         } else if model.mode == .microphone {
-            // Используем метод обработки аудио вместо обычного тапа
             model.handleAudioInput(intensity: audioEngine.audioLevel)
         }
 
-        // Обратная связь для пользователя на основе последнего нажатия
         if model.extraHits > previousExtraHits {
             feedback = "Мимо"
             feedbackColor = .purple
