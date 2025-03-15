@@ -6,7 +6,7 @@ class MetronomeModel: ObservableObject {
     @Published var tempo: Double = 90
     @Published var duration: Double = 20
     @Published var mode: TrainingMode = .tap
-    
+
     // Поддержка ритмических фигур
     @Published var selectedRhythmPatterns: [RhythmPattern] = [.quarter, .eighthPair]
     @Published var currentPatterns: [RhythmPattern] = Array(repeating: .quarter, count: 4)
@@ -61,7 +61,7 @@ class MetronomeModel: ObservableObject {
         case microphone = "Микрофон"
         var id: String { self.rawValue }
     }
-    
+
     enum RhythmPattern: String, CaseIterable, Identifiable {
         case quarter = "Четверть"
         case quarterRest = "Четверть пауза"
@@ -69,9 +69,9 @@ class MetronomeModel: ObservableObject {
         case eighthTriplet = "Триоль восьмыми"
         case restEighthNote = "Пауза + восьмая"
         case eighthNoteRest = "Восьмая + пауза"
-        
+
         var id: String { self.rawValue }
-        
+
         // Возвращает массив моментов времени для ноты в долях от целой ноты
         // Например, для двух восьмых это будет [0, 0.5]
         var noteTimings: [Double] {
@@ -90,7 +90,7 @@ class MetronomeModel: ObservableObject {
                 return [0]
             }
         }
-        
+
         // Возвращает символы для отображения
         var symbols: [String] {
             switch self {
@@ -109,19 +109,19 @@ class MetronomeModel: ObservableObject {
             }
         }
     }
-    
+
     // Обновляет случайный паттерн в указанной позиции
     func updateRandomPattern(at position: Int) {
         guard position >= 0 && position < currentPatterns.count && !selectedRhythmPatterns.isEmpty else { return }
-        
+
         let randomPattern = selectedRhythmPatterns.randomElement() ?? .quarter
         currentPatterns[position] = randomPattern
     }
-    
+
     // Инициализирует все паттерны случайными значениями
     func initializeRandomPatterns() {
         guard !selectedRhythmPatterns.isEmpty else { return }
-        
+
         for i in 0..<currentPatterns.count {
             let randomPattern = selectedRhythmPatterns.randomElement() ?? .quarter
             currentPatterns[i] = randomPattern
@@ -322,11 +322,11 @@ class MetronomeModel: ObservableObject {
         // Рассчитываем, на каком мы сейчас бите и каково отклонение
         let exactBeatPosition = actualElapsed / beatInterval  // Точная позиция в битах
         let nearestBeatNumber = round(exactBeatPosition)      // Ближайший целый бит
-        
+
         // Определяем текущий паттерн
         let currentPatternIndex = (Int(nearestBeatNumber) - 1) % 4
         let currentPattern = currentPatterns[currentPatternIndex]
-        
+
         // Отклонение в долях бита (от 0 до 0.5)
         let beatDeviation = abs(exactBeatPosition - nearestBeatNumber)
         // Отклонение в секундах
@@ -347,42 +347,40 @@ class MetronomeModel: ObservableObject {
             print("Повторное нажатие на тот же бит")
             return
         }
-        
+
         // Проверяем, соответствует ли нажатие текущему ритмическому паттерну
         let intBeat = Int(nearestBeatNumber)
         let beatInPattern = intBeat % 4 // Какой бит в паттерне (0-3)
-        
+
         // Получаем соответствующий паттерн
         let patternIndex = beatInPattern == 0 ? 3 : beatInPattern - 1
         let pattern = currentPatterns[patternIndex]
-        
+
         // Проверяем, должен ли быть звук в данном моменте согласно паттерну
         // Позиция внутри бита (0-1)
         let positionInBeat = exactBeatPosition - floor(exactBeatPosition)
-        
+
         // Находим ближайший timing в паттерне
         var shouldHaveNote = false
-        var closestTiming = 1.0
         var closestDistance = 1.0
-        
+
         for timing in pattern.noteTimings {
             let distance = abs(positionInBeat - timing)
             if distance < closestDistance {
                 closestDistance = distance
-                closestTiming = timing
                 shouldHaveNote = true
             }
         }
-        
+
         // Если в паттерне нет нот, то пауза
         if pattern.noteTimings.isEmpty {
             shouldHaveNote = false
         }
-        
+
         // Обновляем последнее время и бит
         lastHitTime = currentTime
         lastHitBeat = intBeat
-        
+
         // Если это паттерн без нот (пауза) или мы не попали ни в один timing
         if !shouldHaveNote || closestDistance > poorThresholdRatio {
             extraHits += 1
@@ -462,29 +460,27 @@ class MetronomeModel: ObservableObject {
         // Рассчитываем, на каком мы сейчас бите и каково отклонение
         let exactBeatPosition = actualElapsed / beatInterval
         let nearestBeatNumber = round(exactBeatPosition)
-        
+
         // Определяем текущий паттерн
         let intBeat = Int(nearestBeatNumber)
         let beatInPattern = intBeat % 4 // Какой бит в паттерне (0-3)
-        
+
         // Получаем соответствующий паттерн
         let patternIndex = beatInPattern == 0 ? 3 : beatInPattern - 1
         let pattern = currentPatterns[patternIndex]
-        
+
         // Проверяем, должен ли быть звук в данном моменте согласно паттерну
         // Позиция внутри бита (0-1)
         let positionInBeat = exactBeatPosition - floor(exactBeatPosition)
-        
+
         // Находим ближайший timing в паттерне
         var shouldHaveNote = false
-        var closestTiming = 1.0
         var closestDistance = 1.0
-        
+
         for timing in pattern.noteTimings {
             let distance = abs(positionInBeat - timing)
             if distance < closestDistance {
                 closestDistance = distance
-                closestTiming = timing
                 shouldHaveNote = true
             }
         }
@@ -509,16 +505,16 @@ class MetronomeModel: ObservableObject {
             print("Бит \(nearestBeatNumber) вне допустимого диапазона 1-\(totalBeats)")
             return // Игнорируем события до начала или после окончания тренировки
         }
-        
+
         // Если в паттерне нет нот, то пауза
         if pattern.noteTimings.isEmpty {
             shouldHaveNote = false
         }
-        
+
         // Обновляем последнее время и бит
         lastHitTime = currentTime
         lastHitBeat = intBeat
-        
+
         // Если это паттерн без нот (пауза) или мы не попали ни в один timing
         // Для микрофона увеличиваем порог неточности
         let adjustedThreshold = poorThresholdRatio * microAdjustment
