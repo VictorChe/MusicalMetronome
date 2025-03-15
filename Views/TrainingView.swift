@@ -26,14 +26,18 @@ struct TrainingView: View {
                 // Сбрасываем флаг показа результатов при появлении экрана тренировки
                 showResults = false
                 
-                // Проверяем не завершена ли уже тренировка по какой-то причине
-                if !model.isRunning && !model.isCountdown {
-                    // Запускаем тренировку, если она не запущена
-                    model.startMetronome()
+                // Создаем задержку для предотвращения конфликтов с анимациями навигации
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    // Проверяем не завершена ли уже тренировка по какой-то причине
+                    if !model.isRunning && !model.isCountdown {
+                        print("Запускаем тренировку")
+                        // Запускаем тренировку, если она не запущена
+                        model.startMetronome()
+                    }
+                    
+                    // Устанавливаем аудио движок после задержки
+                    setupAudioEngine()
                 }
-                
-                // Устанавливаем аудио движок при появлении экрана
-                setupAudioEngine()
             }
             .onDisappear {
                 if model.mode == .microphone {
@@ -190,9 +194,9 @@ struct TrainingView: View {
             // Автоматически показываем результаты после небольшой задержки
             Text("Загрузка результатов...")
                 .onAppear {
-                    // Небольшая задержка для анимации, предотвращение показа результатов в onAppear
-                    // только если тренировка действительно завершена
-                    if !model.isRunning && !model.isCountdown {
+                    // Убедимся, что тренировка действительно завершена 
+                    // и не было повторного запуска или автоматического запуска
+                    if !model.isRunning && !model.isCountdown && !showResults {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
                             showResults = true
                         }
