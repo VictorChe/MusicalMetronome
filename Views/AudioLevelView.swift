@@ -96,6 +96,10 @@ struct WaveformView: View {
     var body: some View {
         TimelineView(.animation) { timeline in
             Canvas { context, size in
+                let width = size.width
+                let height = size.height
+                let midHeight = height / 2
+                let amplitude = CGFloat(level * height * 0.8)
                 let path = createWavePath(size: size)
                 
                 let highlightPosition = CGPoint(
