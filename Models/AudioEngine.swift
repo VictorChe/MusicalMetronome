@@ -98,8 +98,16 @@ class AudioEngine: NSObject, ObservableObject {
         }
     }
 
-    func startMonitoring() {
-        guard !isMonitoring else { return }
+    enum AudioEngineError: Error {
+        case permissionDenied
+        case setupFailed
+        case alreadyMonitoring
+    }
+    
+    func startMonitoring() throws {
+        guard !isMonitoring else { 
+            throw AudioEngineError.alreadyMonitoring
+        }
 
         // Проверяем, есть ли уже разрешение
         if permissionGranted {

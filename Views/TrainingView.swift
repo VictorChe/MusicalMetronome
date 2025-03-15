@@ -167,7 +167,18 @@ struct TrainingView: View {
                 }
 
                 Button(role: .destructive) {
-                    model.stopMetronome()
+                    showStopConfirmation = true
+                }
+                .confirmationDialog(
+                    "Остановить тренировку?",
+                    isPresented: $showStopConfirmation,
+                    titleVisibility: .visible
+                ) {
+                    Button("Остановить", role: .destructive) {
+                        model.stopMetronome()
+                    }
+                    Button("Продолжить", role: .cancel) { }
+                }
                     if model.mode == .microphone {
                         audioEngine.stopMonitoring()
                     }
