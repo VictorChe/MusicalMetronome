@@ -1,15 +1,14 @@
-
 import SwiftUI
 
 struct RhythmPatternsView: View {
     @ObservedObject var model: MetronomeModel
     var onPatternTapped: (Int) -> Void
-    
+
     var body: some View {
         VStack(spacing: 10) {
             Text("Ритмические фигуры:")
                 .font(.headline)
-            
+
             LazyVGrid(columns: [
                 GridItem(.flexible()),
                 GridItem(.flexible())
@@ -35,20 +34,20 @@ struct RhythmPatternsView: View {
 struct RhythmPatternCard: View {
     let pattern: MetronomeModel.RhythmPattern
     let isActive: Bool
-    
+
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 10)
                 .fill(isActive ? Color.blue.opacity(0.2) : Color.white)
                 .shadow(color: .gray.opacity(0.3), radius: 3, x: 0, y: 2)
-            
+
             VStack {
                 Text(pattern.rawValue)
                     .font(.caption)
                     .foregroundColor(.secondary)
-                
+
                 HStack(spacing: 5) {
-                    ForEach(pattern.symbols, id: \.self) { symbol in
+                    ForEach(Array(pattern.symbols.enumerated()), id: \.offset) { index, symbol in
                         Text(symbol)
                             .font(.title)
                             .foregroundColor(.primary)
@@ -73,7 +72,7 @@ struct RhythmPatternsView_Previews: PreviewProvider {
             .eighthTriplet,
             .restEighthNote
         ]
-        
+
         return RhythmPatternsView(model: model, onPatternTapped: { _ in })
     }
 }

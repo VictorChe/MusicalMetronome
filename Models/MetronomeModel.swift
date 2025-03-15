@@ -335,14 +335,22 @@ class MetronomeModel: ObservableObject {
         print("Точная позиция: \(exactBeatPosition), Ближайший бит: \(nearestBeatNumber), Текущий паттерн: \(currentPattern.rawValue), Отклонение в долях: \(beatDeviation), Отклонение в секундах: \(timeDeviation)")
 
         // Проверяем минимальный интервал между нажатиями
-        if currentTime - lastHitTime < minimumTimeBetweenHits {
+        // Для восьмых нот уменьшаем минимальный интервал
+        let currentPatternIndex = (Int(nearestBeatNumber) - 1) % 4
+        let currentPattern = currentPatterns[currentPatternIndex]
+        let isEighthPattern = currentPattern == .eighthPair || currentPattern == .eighthTriplet
+        
+        let adjustedMinimumTime = isEighthPattern ? minimumTimeBetweenHits * 0.5 : minimumTimeBetweenHits
+        
+        if currentTime - lastHitTime < adjustedMinimumTime {
             extraHits += 1
-            print("Слишком частое нажатие")
+            print("Слишком частое нажатие (интервал: \(currentTime - lastHitTime), минимум: \(adjustedMinimumTime))")
             return
         }
 
         // Проверяем, не было ли уже попадания на этот бит
-        if Int(nearestBeatNumber) == lastHitBeat {
+        // Для восьмых допускаем больше одного нажатия на бит
+        if Int(nearestBeatNumber) == lastHitBeat && !isEighthPattern {
             extraHits += 1
             print("Повторное нажатие на тот же бит")
             return
@@ -363,11 +371,13 @@ class MetronomeModel: ObservableObject {
         // Находим ближайший timing в паттерне
         var shouldHaveNote = false
         var closestDistance = 1.0
+        var closestTiming = 0.0
 
         for timing in pattern.noteTimings {
             let distance = abs(positionInBeat - timing)
             if distance < closestDistance {
                 closestDistance = distance
+                closestTiming = timing
                 shouldHaveNote = true
             }
         }
@@ -375,6 +385,13 @@ class MetronomeModel: ObservableObject {
         // Если в паттерне нет нот, то пауза
         if pattern.noteTimings.isEmpty {
             shouldHaveNote = false
+        }
+        
+        // Проверяем для паттерна две восьмые, не попадаем ли мы во вторую восьмую
+        if pattern == .eighthPair && positionInBeat >= 0.4 && positionInBeat <= 0.6 {
+            // Это вторая восьмая нота в паре
+            shouldHaveNote = true
+            closestDistance = abs(positionInBeat - 0.5) // Расстояние до второй восьмой (0.5)
         }
 
         // Обновляем последнее время и бит
@@ -422,8 +439,7 @@ class MetronomeModel: ObservableObject {
 
         let currentTime = Date().timeIntervalSince1970
 
-        // Компенсация системной задержки
-        let _ = 0.02 // 20ms базовая системная задержка (не используется)
+        // Системная задержка учитывается в общей задержке
 
         // Получаем текущее время с момента начала
         guard let startTime = startTime else {

@@ -123,7 +123,7 @@ struct AudioLevelView: View {
                             }
                         }
                 )
-                .onChange(of: level) { newLevel in
+                .onChange(of: level) { oldLevel, newLevel in
                     withAnimation(.easeOut(duration: 0.1)) {
                         animatedLevel = newLevel
                     }
@@ -133,7 +133,7 @@ struct AudioLevelView: View {
                         updateWavePoints(width: geometry.size.width, height: geometry.size.height, level: newLevel)
                     }
                 }
-                .onChange(of: currentBeatPosition) { newPosition in
+                .onChange(of: currentBeatPosition) { oldPosition, newPosition in
                     // Автоматически прокручиваем при приближении к краю видимой области
                     if !isFullscreen {
                         let visibleBeats = Double(getVisibleBeatsCount(width: geometry.size.width))

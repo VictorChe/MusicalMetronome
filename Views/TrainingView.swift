@@ -103,7 +103,7 @@ struct TrainingView: View {
                 
                 // Вызов обновления паттерна, если изменился текущий бит
                 // и мы должны обновить паттерн
-                .onChange(of: model.currentBeat) { newBeat in
+                .onChange(of: model.currentBeat) { oldBeat, newBeat in
                     // Обновляем случайный паттерн каждые 4 бита или если это первый бит
                     if newBeat > 0 && (newBeat % 4 == 0 || lastUpdatedPatternIndex == -1) {
                         let randomIndex = Int.random(in: 0..<model.currentPatterns.count)
