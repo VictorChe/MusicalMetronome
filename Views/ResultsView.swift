@@ -327,7 +327,7 @@ struct SpectrogramView: View {
                     // Создаем волнистую линию, имитирующую аудио волну
                     let stepX = geometry.size.width / CGFloat(50)
                     let midY = geometry.size.height / 2
-                    var startPoint = CGPoint(x: 0, y: midY)
+                    let startPoint = CGPoint(x: 0, y: midY)
 
                     path.move(to: startPoint)
 

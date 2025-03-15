@@ -4,7 +4,7 @@ modules = ["swift-5.8"]
 channel = "stable-24_05"
 
 [workflows]
-runButton = "iOS App"
+runButton = "Build and Run"
 
 [[workflows.workflow]]
 name = "Project"
@@ -24,6 +24,19 @@ agentRequireRestartOnSave = false
 
 [[workflows.workflow.tasks]]
 task = "packager.installForAll"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "swift run"
+
+[[workflows.workflow]]
+name = "Build and Run"
+author = 40522605
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "swift build"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"

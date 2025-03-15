@@ -1,4 +1,5 @@
 import SwiftUI
+import AVFoundation
 
 struct TrainingView: View {
     @ObservedObject var model: MetronomeModel
