@@ -1,24 +1,17 @@
-
 import SwiftUI
 
-struct AudioLevelView: View {
-    var level: Double
+struct BarsView: View {
+    let level: Double
 
     var body: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 3) {
-                ForEach(0..<20, id: \.self) { index in
-                    Rectangle()
-                        .fill(barColor(for: index))
-                        .frame(width: 10)
-                        .frame(height: barHeight(for: index))
-                        .cornerRadius(5)
-                }
+        HStack(spacing: 3) {
+            ForEach(0..<20, id: \.self) { index in
+                Rectangle()
+                    .fill(barColor(for: index))
+                    .frame(width: 10)
+                    .frame(height: barHeight(for: index))
+                    .cornerRadius(5)
             }
-
-            Text("Микрофон активен")
-                .font(.caption)
-                .foregroundColor(.secondary)
         }
     }
 
@@ -26,35 +19,46 @@ struct AudioLevelView: View {
         let baseHeight: Double = 20.0
         let maxHeight: Double = 100.0
         let threshold = Double(index) * 0.2
-        
-        let normalizedLevel = level - threshold
-        let clampedLevel = max(0, normalizedLevel)
-        let scaledLevel = min(clampedLevel * 2, 1)
-        
-        let heightDifference = maxHeight - baseHeight
-        let additionalHeight = heightDifference * scaledLevel
-        
-        return baseHeight + additionalHeight
+        let scaledLevel = min(max(0, level - threshold) * 2, 1)
+        return baseHeight + (maxHeight - baseHeight) * scaledLevel
     }
 
     private func barColor(for index: Int) -> Color {
         let threshold = Double(index) * 0.2
-        let levelAboveThreshold = level - threshold
-        
-        if levelAboveThreshold > 0.8 {
+        if level > threshold + 0.8 {
             return .red
-        }
-        if levelAboveThreshold > 0.5 {
+        } else if level > threshold + 0.5 {
             return .orange
-        }
-        if levelAboveThreshold > 0 {
+        } else if level > threshold {
             return .green
+        } else {
+            return Color.gray.opacity(0.3)
         }
-        return Color.gray.opacity(0.3)
     }
 }
 
-// Оставляем WaveformView без изменений, так как с ней нет проблем
+struct AudioLevelView: View {
+    var level: Double
+
+    var body: some View {
+        VStack(spacing: 8) {
+            BarsView(level: level)
+
+            Text("Микрофон активен")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+    }
+}
+
+struct AudioLevelView_Previews: PreviewProvider {
+    static var previews: some View {
+        AudioLevelView(level: 0.5)
+            .frame(height: 100)
+            .padding()
+    }
+}
+
 struct WaveformView: View {
     var level: Double
     @State private var phase = 0.0
@@ -121,7 +125,7 @@ struct WaveformView: View {
     }
 }
 
-struct AudioLevelView_Previews: PreviewProvider {
+struct AudioLevelView_Previews_2: PreviewProvider {
     static var previews: some View {
         VStack {
             AudioLevelView(level: 0.5)
