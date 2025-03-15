@@ -23,11 +23,17 @@ struct TrainingView: View {
             }
             .padding()
             .onAppear {
-                // Устанавливаем аудио движок при появлении экрана
-                setupAudioEngine()
-                
                 // Сбрасываем флаг показа результатов при появлении экрана тренировки
                 showResults = false
+                
+                // Проверяем не завершена ли уже тренировка по какой-то причине
+                if !model.isRunning && !model.isCountdown {
+                    // Запускаем тренировку, если она не запущена
+                    model.startMetronome()
+                }
+                
+                // Устанавливаем аудио движок при появлении экрана
+                setupAudioEngine()
             }
             .onDisappear {
                 if model.mode == .microphone {
@@ -42,6 +48,10 @@ struct TrainingView: View {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                         dismiss()
                     }
+                } else {
+                    // Если тренировка не завершена, но мы закрыли экран результатов,
+                    // убедимся, что мы не покажем его снова
+                    showResults = false
                 }
             }) {
                 ResultsView(model: model)
@@ -180,9 +190,12 @@ struct TrainingView: View {
             // Автоматически показываем результаты после небольшой задержки
             Text("Загрузка результатов...")
                 .onAppear {
-                    // Небольшая задержка для анимации
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                        showResults = true
+                    // Небольшая задержка для анимации, предотвращение показа результатов в onAppear
+                    // только если тренировка действительно завершена
+                    if !model.isRunning && !model.isCountdown {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                            showResults = true
+                        }
                     }
                 }
         }

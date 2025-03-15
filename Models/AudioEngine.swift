@@ -202,24 +202,28 @@ class AudioEngine: NSObject, ObservableObject {
     }
 
     func stopMonitoring() {
-        guard let audioEngine = audioEngine else { return }
+        guard let audioEngine = audioEngine, isMonitoring else { 
+            print("Аудио мониторинг уже остановлен или движок не инициализирован")
+            return 
+        }
 
         // Безопасное удаление тапа и остановка движка
+        // Используем синхронное выполнение, чтобы гарантировать завершение остановки
         if isMonitoring {
-            DispatchQueue.main.async { [weak self] in
-                guard let self = self else { return }
-
-                if let inputNode = self.inputNode {
-                    inputNode.removeTap(onBus: 0)
-                }
-
-                audioEngine.stop()
-
-                // Не деактивируем сессию полностью, чтобы не конфликтовать с метрономом
-                // Просто сообщаем, что мы больше не мониторим
-                self.isMonitoring = false
-                print("Аудио мониторинг остановлен")
+            print("Останавливаем аудио мониторинг...")
+            
+            // Сначала отмечаем, что мониторинг остановлен, чтобы предотвратить повторные вызовы
+            isMonitoring = false
+            
+            // Используем синхронный вызов для гарантированной остановки
+            if let inputNode = self.inputNode {
+                inputNode.removeTap(onBus: 0)
             }
+            
+            audioEngine.stop()
+            
+            // Не деактивируем сессию полностью, чтобы не конфликтовать с метрономом
+            print("Аудио мониторинг успешно остановлен")
         }
     }
 

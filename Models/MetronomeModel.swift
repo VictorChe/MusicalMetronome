@@ -126,6 +126,12 @@ class MetronomeModel: ObservableObject {
     }
 
     func startMetronome() {
+        // Проверяем, не запущена ли уже тренировка, чтобы избежать дублирования
+        guard !isRunning && !isCountdown else {
+            print("Тренировка уже запущена, игнорируем повторный запуск")
+            return
+        }
+        
         // Убедимся, что ресурсы чистые перед началом
         cleanupResources()
         
