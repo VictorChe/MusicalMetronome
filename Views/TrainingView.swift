@@ -1,3 +1,4 @@
+
 import SwiftUI
 import AVFoundation
 
@@ -9,6 +10,7 @@ struct TrainingView: View {
     @State private var feedback = ""
     @State private var feedbackColor = Color.gray
     @State private var showFeedback = false
+    @State private var showStopConfirmation = false
 
     var body: some View {
         GeometryReader { _ in
@@ -168,6 +170,12 @@ struct TrainingView: View {
 
                 Button(role: .destructive) {
                     showStopConfirmation = true
+                } label: {
+                    HStack {
+                        Image(systemName: "xmark.circle.fill")
+                        Text("Завершить тренировку")
+                    }
+                    .padding()
                 }
                 .confirmationDialog(
                     "Остановить тренировку?",
@@ -176,19 +184,12 @@ struct TrainingView: View {
                 ) {
                     Button("Остановить", role: .destructive) {
                         model.stopMetronome()
+                        if model.mode == .microphone {
+                            audioEngine.stopMonitoring()
+                        }
+                        showResults = true
                     }
                     Button("Продолжить", role: .cancel) { }
-                }
-                    if model.mode == .microphone {
-                        audioEngine.stopMonitoring()
-                    }
-                    showResults = true
-                } label: {
-                    HStack {
-                        Image(systemName: "xmark.circle.fill")
-                        Text("Завершить тренировку")
-                    }
-                    .padding()
                 }
             }
             .padding()
