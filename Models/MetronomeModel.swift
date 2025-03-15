@@ -322,13 +322,17 @@ class MetronomeModel: ObservableObject {
         // Рассчитываем, на каком мы сейчас бите и каково отклонение
         let exactBeatPosition = actualElapsed / beatInterval  // Точная позиция в битах
         let nearestBeatNumber = round(exactBeatPosition)      // Ближайший целый бит
-
+        
+        // Определяем текущий паттерн
+        let currentPatternIndex = (Int(nearestBeatNumber) - 1) % 4
+        let currentPattern = currentPatterns[currentPatternIndex]
+        
         // Отклонение в долях бита (от 0 до 0.5)
         let beatDeviation = abs(exactBeatPosition - nearestBeatNumber)
         // Отклонение в секундах
         let timeDeviation = beatDeviation * beatInterval
 
-        print("Точная позиция: \(exactBeatPosition), Ближайший бит: \(nearestBeatNumber), Отклонение в долях: \(beatDeviation), Отклонение в секундах: \(timeDeviation)")
+        print("Точная позиция: \(exactBeatPosition), Ближайший бит: \(nearestBeatNumber), Текущий паттерн: \(currentPattern.rawValue), Отклонение в долях: \(beatDeviation), Отклонение в секундах: \(timeDeviation)")
 
         // Проверяем минимальный интервал между нажатиями
         if currentTime - lastHitTime < minimumTimeBetweenHits {
@@ -343,26 +347,65 @@ class MetronomeModel: ObservableObject {
             print("Повторное нажатие на тот же бит")
             return
         }
-
+        
+        // Проверяем, соответствует ли нажатие текущему ритмическому паттерну
+        let intBeat = Int(nearestBeatNumber)
+        let beatInPattern = intBeat % 4 // Какой бит в паттерне (0-3)
+        
+        // Получаем соответствующий паттерн
+        let patternIndex = beatInPattern == 0 ? 3 : beatInPattern - 1
+        let pattern = currentPatterns[patternIndex]
+        
+        // Проверяем, должен ли быть звук в данном моменте согласно паттерну
+        // Позиция внутри бита (0-1)
+        let positionInBeat = exactBeatPosition - floor(exactBeatPosition)
+        
+        // Находим ближайший timing в паттерне
+        var shouldHaveNote = false
+        var closestTiming = 1.0
+        var closestDistance = 1.0
+        
+        for timing in pattern.noteTimings {
+            let distance = abs(positionInBeat - timing)
+            if distance < closestDistance {
+                closestDistance = distance
+                closestTiming = timing
+                shouldHaveNote = true
+            }
+        }
+        
+        // Если в паттерне нет нот, то пауза
+        if pattern.noteTimings.isEmpty {
+            shouldHaveNote = false
+        }
+        
+        // Обновляем последнее время и бит
         lastHitTime = currentTime
-        lastHitBeat = Int(nearestBeatNumber)
+        lastHitBeat = intBeat
+        
+        // Если это паттерн без нот (пауза) или мы не попали ни в один timing
+        if !shouldHaveNote || closestDistance > poorThresholdRatio {
+            extraHits += 1
+            print("Нота мимо: \(beatDeviation) - не соответствует паттерну \(pattern.rawValue)")
+            return
+        }
 
         // Определяем тип попадания на основе отклонения в долях
-        print("Отклонение в долях бита: \(beatDeviation)")
+        print("Отклонение в долях бита от ритмического паттерна: \(closestDistance)")
 
         // Используем абсолютное значение отклонения для определения типа попадания
-        if beatDeviation <= perfectThresholdRatio {
+        if closestDistance <= perfectThresholdRatio {
             perfectHits += 1
-            print("Идеальное попадание: \(beatDeviation)")
-        } else if beatDeviation <= goodThresholdRatio {
+            print("Идеальное попадание: \(closestDistance)")
+        } else if closestDistance <= goodThresholdRatio {
             goodHits += 1
-            print("Хорошее попадание: \(beatDeviation)")
-        } else if beatDeviation <= poorThresholdRatio {
+            print("Хорошее попадание: \(closestDistance)")
+        } else if closestDistance <= poorThresholdRatio {
             missedHits += 1
-            print("Неточное попадание: \(beatDeviation)")
+            print("Неточное попадание: \(closestDistance)")
         } else {
             extraHits += 1
-            print("Нота мимо: \(beatDeviation)")
+            print("Нота мимо: \(closestDistance)")
         }
 
         print("Статистика - Идеальные: \(perfectHits), Хорошие: \(goodHits), Неточные: \(missedHits), Мимо: \(extraHits)")
@@ -383,7 +426,6 @@ class MetronomeModel: ObservableObject {
 
         // Компенсация системной задержки
         let systemLatency = 0.02 // 20ms базовая системная задержка
-        // Убрана неиспользуемая переменная
 
         // Получаем текущее время с момента начала
         guard let startTime = startTime else {
@@ -420,9 +462,32 @@ class MetronomeModel: ObservableObject {
         // Рассчитываем, на каком мы сейчас бите и каково отклонение
         let exactBeatPosition = actualElapsed / beatInterval
         let nearestBeatNumber = round(exactBeatPosition)
-
-        // Отклонение в долях бита (от 0 до 0.5)
-        let beatDeviation = abs(exactBeatPosition - nearestBeatNumber)
+        
+        // Определяем текущий паттерн
+        let intBeat = Int(nearestBeatNumber)
+        let beatInPattern = intBeat % 4 // Какой бит в паттерне (0-3)
+        
+        // Получаем соответствующий паттерн
+        let patternIndex = beatInPattern == 0 ? 3 : beatInPattern - 1
+        let pattern = currentPatterns[patternIndex]
+        
+        // Проверяем, должен ли быть звук в данном моменте согласно паттерну
+        // Позиция внутри бита (0-1)
+        let positionInBeat = exactBeatPosition - floor(exactBeatPosition)
+        
+        // Находим ближайший timing в паттерне
+        var shouldHaveNote = false
+        var closestTiming = 1.0
+        var closestDistance = 1.0
+        
+        for timing in pattern.noteTimings {
+            let distance = abs(positionInBeat - timing)
+            if distance < closestDistance {
+                closestDistance = distance
+                closestTiming = timing
+                shouldHaveNote = true
+            }
+        }
 
         // Значительно увеличиваем допустимое отклонение для режима микрофона
         let microAdjustment = 2.5 // Немного уменьшаем увеличение порогов
@@ -444,31 +509,45 @@ class MetronomeModel: ObservableObject {
             print("Бит \(nearestBeatNumber) вне допустимого диапазона 1-\(totalBeats)")
             return // Игнорируем события до начала или после окончания тренировки
         }
-
-        // Основная логика определения попадания
+        
+        // Если в паттерне нет нот, то пауза
+        if pattern.noteTimings.isEmpty {
+            shouldHaveNote = false
+        }
+        
+        // Обновляем последнее время и бит
         lastHitTime = currentTime
-        lastHitBeat = Int(nearestBeatNumber)
+        lastHitBeat = intBeat
+        
+        // Если это паттерн без нот (пауза) или мы не попали ни в один timing
+        // Для микрофона увеличиваем порог неточности
+        let adjustedThreshold = poorThresholdRatio * microAdjustment
+        if !shouldHaveNote || closestDistance > adjustedThreshold {
+            extraHits += 1
+            print("Нота мимо: \(closestDistance) - не соответствует паттерну \(pattern.rawValue)")
+            viewCallback?()
+            return
+        }
 
-        // Определяем тип попадания с учетом сильно увеличенных порогов для микрофона
-        print("Отклонение в долях бита: \(beatDeviation)")
+        print("Отклонение в долях бита от ритмического паттерна: \(closestDistance)")
 
         // Для режима микрофона увеличиваем пороги
         let adjustedPerfectThreshold = perfectThresholdRatio * microAdjustment
         let adjustedGoodThreshold = goodThresholdRatio * microAdjustment
         let adjustedPoorThreshold = poorThresholdRatio * microAdjustment
 
-        if beatDeviation <= adjustedPerfectThreshold {
+        if closestDistance <= adjustedPerfectThreshold {
             perfectHits += 1
-            print("Идеальное попадание: \(beatDeviation) (порог: \(adjustedPerfectThreshold))")
-        } else if beatDeviation <= adjustedGoodThreshold {
+            print("Идеальное попадание: \(closestDistance) (порог: \(adjustedPerfectThreshold))")
+        } else if closestDistance <= adjustedGoodThreshold {
             goodHits += 1
-            print("Хорошее попадание: \(beatDeviation) (порог: \(adjustedGoodThreshold))")
-        } else if beatDeviation <= adjustedPoorThreshold {
+            print("Хорошее попадание: \(closestDistance) (порог: \(adjustedGoodThreshold))")
+        } else if closestDistance <= adjustedPoorThreshold {
             missedHits += 1
-            print("Неточное попадание: \(beatDeviation) (порог: \(adjustedPoorThreshold))")
+            print("Неточное попадание: \(closestDistance) (порог: \(adjustedPoorThreshold))")
         } else {
             extraHits += 1
-            print("Нота мимо: \(beatDeviation) (выше порога: \(adjustedPoorThreshold))")
+            print("Нота мимо: \(closestDistance) (выше порога: \(adjustedPoorThreshold))")
         }
 
         print("Статистика - Идеальные: \(perfectHits), Хорошие: \(goodHits), Неточные: \(missedHits), Мимо: \(extraHits)")

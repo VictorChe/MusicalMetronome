@@ -11,6 +11,7 @@ struct TrainingView: View {
     @State private var feedbackColor = Color.gray
     @State private var showFeedback = false
     @State private var showStopConfirmation = false
+    @State private var lastUpdatedPatternIndex: Int = -1
 
     var body: some View {
         GeometryReader { _ in
@@ -28,6 +29,8 @@ struct TrainingView: View {
                 showResults = false
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     if !model.isRunning && !model.isCountdown {
+                        // Инициализация случайных паттернов при начале тренировки
+                        model.initializeRandomPatterns()
                         model.startMetronome()
                     }
                     setupAudioEngine()
@@ -89,6 +92,25 @@ struct TrainingView: View {
 
                 Text("Бит: \(model.currentBeat) / \(model.totalBeats)")
                     .font(.headline)
+                
+                // Добавление ритмических фигур
+                RhythmPatternsView(model: model, onPatternTapped: { index in
+                    // При нажатии на паттерн, можно добавить дополнительную логику,
+                    // например, воспроизведение звука паттерна
+                })
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                
+                // Вызов обновления паттерна, если изменился текущий бит
+                // и мы должны обновить паттерн
+                .onChange(of: model.currentBeat) { newBeat in
+                    // Обновляем случайный паттерн каждые 4 бита или если это первый бит
+                    if newBeat > 0 && (newBeat % 4 == 0 || lastUpdatedPatternIndex == -1) {
+                        let randomIndex = Int.random(in: 0..<model.currentPatterns.count)
+                        lastUpdatedPatternIndex = randomIndex
+                        model.updateRandomPattern(at: randomIndex)
+                    }
+                }
 
                 VStack(spacing: 10) {
                     HStack {
