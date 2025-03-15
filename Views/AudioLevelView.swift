@@ -121,10 +121,10 @@ struct WaveformView: View {
                 
                 context.stroke(
                     path,
-                    with: .linearGradient(
+                    with: .conicGradient(
                         gradient,
-                        startPoint: CGPoint(x: 0, y: midHeight),
-                        endPoint: CGPoint(x: width, y: midHeight)
+                        center: CGPoint(x: width/2, y: midHeight),
+                        angle: .degrees(0)
                     ),
                     style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round)
                 )
