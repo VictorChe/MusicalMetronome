@@ -194,27 +194,9 @@ struct ResultsView: View {
                 }
 
 
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Статистика по тактам:")
-                        .font(.headline)
-                        .padding(.top)
-
-                    let beatAccuracies = calculateBeatAccuracies()
-                    ForEach(Array(beatAccuracies.enumerated()), id: \.offset) { index, accuracy in
-                        HStack {
-                            Text("Такт \(index + 1):")
-                            Spacer()
-                            Text(String(format: "%.1f%%", accuracy))
-                            CircularProgressView(progress: accuracy / 100)
-                                .frame(width: 20, height: 20)
-                        }
-                        .padding(.vertical, 5)
-                        .padding(.horizontal)
-                        .background(Color.gray.opacity(0.05))
-                        .cornerRadius(5)
-                    }
-                }
-                .padding()
+                // Здесь была удалена статистика по тактам
+                Spacer()
+                    .frame(height: 20)
 
                 Spacer()
 
@@ -367,30 +349,59 @@ struct SpectrogramView: View {
                                 .offset(y: -15)
                         )
                 }
-
-                // Удары пользователя (закомментировано, так как нет структуры userHits в модели)
-                /*
-                ForEach(model.userHits.indices, id: \.self) { index in
-                    let hit = model.userHits[index]
-                    let x = hit.beatPosition * geometry.size.width / CGFloat(model.totalBeats)
-                    // Определяем цвет заранее
-                    let hitColor: Color = hit.deviation <= 0.05 ? .green :
-                                       hit.deviation <= 0.15 ? .blue : .orange
-
+                
+                // Визуализация пользовательских попаданий
+                // Идеальные попадания
+                ForEach(0..<model.perfectHits, id: \.self) { index in
+                    // Распределяем хиты равномерно для визуализации
+                    let beatPosition = CGFloat(index + 1) * geometry.size.width / CGFloat(max(1, model.perfectHits + 1))
                     Circle()
-                        .fill(hitColor)
+                        .fill(Color.green)
                         .frame(width: 10, height: 10)
-                        .position(x: x, y: geometry.size.height / 2 + 20)
-                        .overlay(
-                            // Показываем отклонение в миллисекундах
-                            Text("\(Int(hit.deviation * 1000))")
-                                .font(.system(size: 8))
-                                .foregroundColor(hitColor)
-                                .background(Color(UIColor.systemBackground).opacity(0.7))
-                                .offset(y: 15)
+                        .position(
+                            x: beatPosition,
+                            y: geometry.size.height / 2 + 20
                         )
                 }
-                */
+                
+                // Хорошие попадания
+                ForEach(0..<model.goodHits, id: \.self) { index in
+                    // Распределяем хиты равномерно для визуализации
+                    let beatPosition = CGFloat(index + 1) * geometry.size.width / CGFloat(max(1, model.goodHits + 1))
+                    Circle()
+                        .fill(Color.blue)
+                        .frame(width: 10, height: 10)
+                        .position(
+                            x: beatPosition,
+                            y: geometry.size.height / 2 + 20
+                        )
+                }
+                
+                // Неточные попадания
+                ForEach(0..<model.missedHits, id: \.self) { index in
+                    // Распределяем хиты равномерно для визуализации
+                    let beatPosition = CGFloat(index + 1) * geometry.size.width / CGFloat(max(1, model.missedHits + 1))
+                    Circle()
+                        .fill(Color.orange)
+                        .frame(width: 10, height: 10)
+                        .position(
+                            x: beatPosition,
+                            y: geometry.size.height / 2 + 35
+                        )
+                }
+                
+                // Попадания мимо
+                ForEach(0..<model.extraHits, id: \.self) { index in
+                    // Распределяем хиты равномерно для визуализации
+                    let beatPosition = CGFloat(index + 1) * geometry.size.width / CGFloat(max(1, model.extraHits + 1))
+                    Circle()
+                        .fill(Color.purple)
+                        .frame(width: 10, height: 10)
+                        .position(
+                            x: beatPosition,
+                            y: geometry.size.height / 2 + 50
+                        )
+                }
             }
         }
     }

@@ -131,15 +131,15 @@ class MetronomeModel: ObservableObject {
             print("Тренировка уже запущена, игнорируем повторный запуск")
             return
         }
-        
+
         // Убедимся, что ресурсы чистые перед началом
         cleanupResources()
-        
+
         // Полностью сбрасываем все результаты
         resetResults()
         isCountdown = true
         countdownCount = 4
-        
+
         // Проверяем состояние аудио плеера
         if audioPlayer == nil {
             print("Настраиваем аудио перед началом тренировки")
@@ -148,7 +148,7 @@ class MetronomeModel: ObservableObject {
 
         // Воспроизводим первый тик
         playTick()
-        
+
         // Настраиваем основной таймер метронома
         timer = Timer.scheduledTimer(withTimeInterval: beatInterval, repeats: true) { [weak self] _ in
             guard let self = self else { return }
@@ -175,7 +175,7 @@ class MetronomeModel: ObservableObject {
                 }
             }
         }
-        
+
         print("Метроном успешно запущен")
     }
 
@@ -313,16 +313,16 @@ class MetronomeModel: ObservableObject {
 
         // Компенсация системной задержки
         let systemLatency = 0.02 // 20ms базовая системная задержка
-        let totalLatencyCompensation = systemLatency + (latencyCompensation / 1000.0)
+        let _ = systemLatency + (latencyCompensation / 1000.0) // totalLatencyCompensation is unused
 
         // Получаем текущее время с момента начала
-        guard let startTime = startTime else { 
+        guard let startTime = startTime else {
             print("Ошибка: startTime не установлено")
-            return 
+            return
         }
 
         // Защита от слишком частых аудио событий
-        if let lastAudioTime = lastDetectedAudioTime, 
+        if let lastAudioTime = lastDetectedAudioTime,
            Date().timeIntervalSince(lastAudioTime) < minimumAudioDetectionInterval {
             print("Игнорирование слишком частого аудиособытия")
             return
@@ -384,7 +384,7 @@ class MetronomeModel: ObservableObject {
 
         // Для режима микрофона увеличиваем пороги
         let adjustedPerfectThreshold = perfectThresholdRatio * microAdjustment
-        let adjustedGoodThreshold = goodThresholdRatio * microAdjustment 
+        let adjustedGoodThreshold = goodThresholdRatio * microAdjustment
         let adjustedPoorThreshold = poorThresholdRatio * microAdjustment
 
         if beatDeviation <= adjustedPerfectThreshold {

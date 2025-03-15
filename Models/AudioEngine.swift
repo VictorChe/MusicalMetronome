@@ -275,24 +275,6 @@ class AudioEngine: NSObject, ObservableObject {
             return
         }
 
-        // Улучшенная проверка временного интервала с динамическим порогом
-        if let lastTime = lastBeatDetectionTime {
-            let timeSinceLastBeat = Date().timeIntervalSince(lastTime)
-
-            // Динамический минимальный интервал, зависящий от громкости
-            let dynamicInterval = max(minimumBeatInterval * 0.7, minimumBeatInterval - (currentLevel * 0.05))
-
-            if timeSinceLastBeat < dynamicInterval {
-                // Если это очень сильный сигнал (ударение), обрабатываем его в любом случае
-                if currentLevel > dynamicThreshold * 1.8 {
-                    print("Обнаружен очень сильный сигнал (\(currentLevel)), игнорируем минимальный интервал")
-                } else {
-                    print("Слишком частое обнаружение звука (прошло \(timeSinceLastBeat)с), игнорируем")
-                    return
-                }
-            }
-        }
-
         // Адаптивный порог для предотвращения ложных срабатываний
         let previousAverage = previousAudioLevels.prefix(previousAudioLevels.count - 1).reduce(0, +) 
                            / Double(previousAudioLevels.count - 1)
@@ -312,6 +294,28 @@ class AudioEngine: NSObject, ObservableObject {
 
         // Отладочная информация
         print("Аудио: \(currentLevel), средний: \(previousAverage), порог: \(adjustedThreshold), музыкальность: \(hasInstrumentSound), акцент: \(isAccent)")
+
+        // Улучшенная проверка временного интервала с динамическим порогом
+        if let lastTime = lastBeatDetectionTime {
+            let timeSinceLastBeat = Date().timeIntervalSince(lastTime)
+
+            // Динамический минимальный интервал, зависящий от громкости
+            let dynamicInterval = max(minimumBeatInterval * 0.7, minimumBeatInterval - (currentLevel * 0.05))
+
+            if timeSinceLastBeat < dynamicInterval {
+                // Если это очень сильный сигнал (ударение), обрабатываем его в любом случае
+                if currentLevel > dynamicThreshold * 1.8 {
+                    print("Обнаружен очень сильный сигнал (\(currentLevel)), игнорируем минимальный интервал")
+                } else {
+                    print("Слишком частое обнаружение звука (прошло \(timeSinceLastBeat)с), игнорируем")
+                    // Все равно отправляем событие, чтобы засчитать как "мимо"
+                    DispatchQueue.main.async {
+                        self.onAudioDetected?(currentLevel)
+                    }
+                    return
+                }
+            }
+        }
 
         // Улучшенное условие для определения бита
         if ((isVolumeSpike && isLoudEnough) || isAccent) && hasInstrumentSound {
