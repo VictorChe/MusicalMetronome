@@ -36,6 +36,15 @@ struct TrainingView: View {
                     setupAudioEngine()
                 }
             }
+            .onChange(of: model.isRunning) { wasRunning, isRunning in
+                // Показываем результаты только когда тренировка завершилась,
+                // а не когда она только начинается
+                if wasRunning && !isRunning && !model.isCountdown {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                        showResults = true
+                    }
+                }
+            }
             .onDisappear {
                 if model.mode == MetronomeModel.TrainingMode.microphone {
                     audioEngine.stopMonitoring()
@@ -148,8 +157,9 @@ struct TrainingView: View {
                 // Вызов обновления паттерна, если изменился текущий бит
                 // и мы должны обновить паттерн
                 .onChange(of: model.currentBeat) { oldBeat, newBeat in
-                    // Обновляем случайный паттерн каждые 4 бита или если это первый бит
-                    if newBeat > 0 && (newBeat % 4 == 0 || lastUpdatedPatternIndex == -1) {
+                    // Обновляем паттерн только в начале нового такта (каждые 4 бита)
+                    // или при самом первом бите, чтобы избежать смены паттерна в середине
+                    if newBeat > 0 && (newBeat % 4 == 1 || lastUpdatedPatternIndex == -1) {
                         let randomIndex = Int.random(in: 0..<model.currentPatterns.count)
                         lastUpdatedPatternIndex = randomIndex
                         model.updateRandomPattern(at: randomIndex)

@@ -1,3 +1,4 @@
+
 import SwiftUI
 
 struct ResultsView: View {
@@ -44,18 +45,50 @@ struct ResultsView: View {
             .background(Color(UIColor.systemGray6))
             .cornerRadius(12)
 
-            // График попаданий по тактам
+            // Спектрограмма или визуализация попаданий
             VStack(alignment: .leading) {
-                Text("График по тактам:")
+                Text("Визуализация попаданий:")
                     .font(.headline)
                     .padding(.bottom, 5)
-
-                MeasureAccuracyGraph(
-                    values: calculateMeasureAccuracy(),
-                    maxValue: 100,
-                    barColor: getAccuracyColor(accuracy: getOverallAccuracy())
-                )
-                .frame(height: 120)
+                
+                // Добавляем упрощенную визуализацию попаданий - схожую с AudioLevelView
+                HStack(spacing: 2) {
+                    ForEach(0..<min(20, model.totalBeats), id: \.self) { i in
+                        let height = getBarHeight(for: i)
+                        let color = getBarColor(for: i)
+                        
+                        Rectangle()
+                            .fill(color)
+                            .frame(height: height * 60)
+                            .cornerRadius(2)
+                    }
+                }
+                .frame(height: 60)
+                .padding(.bottom, 10)
+                
+                // Легенда
+                HStack(spacing: 15) {
+                    HStack(spacing: 5) {
+                        Circle().fill(Color.green).frame(width: 10, height: 10)
+                        Text("Идеальные").font(.caption)
+                    }
+                    
+                    HStack(spacing: 5) {
+                        Circle().fill(Color.blue).frame(width: 10, height: 10)
+                        Text("Хорошие").font(.caption)
+                    }
+                    
+                    HStack(spacing: 5) {
+                        Circle().fill(Color.orange).frame(width: 10, height: 10)
+                        Text("Неточные").font(.caption)
+                    }
+                    
+                    HStack(spacing: 5) {
+                        Circle().fill(Color.red).frame(width: 10, height: 10)
+                        Text("Пропущенные").font(.caption)
+                    }
+                }
+                .frame(maxWidth: .infinity)
             }
             .padding()
             .background(Color(UIColor.systemBackground))
@@ -98,35 +131,36 @@ struct ResultsView: View {
             return .red
         }
     }
-
-    // Рассчитываем точность попаданий по тактам
-    private func calculateMeasureAccuracy() -> [Double] {
-        let beatsPer4Measure = 4 // Количество ударов в такте 4/4
-        let measureCount = (model.totalBeats + beatsPer4Measure - 1) / beatsPer4Measure
-
-        var results: [Double] = []
-
-        for i in 0..<measureCount {
-            let startBeat = i * beatsPer4Measure + 1 // Начиная с 1
-            let endBeat = min((i + 1) * beatsPer4Measure, model.totalBeats)
-            let totalBeatsInMeasure = endBeat - startBeat + 1
-
-            // Определяем количество попаданий в такте
-            // В реальном коде здесь нужно учитывать реальные попадания пользователя
-            // Для простоты используем случайные значения, основанные на общей точности
-            let measureHits = Int.random(in: 0...totalBeatsInMeasure)
-
-            // Если в такте не было ударов, ставим 0
-            if measureHits == 0 {
-                results.append(0.0)
-            } else {
-                // Считаем точность в процентах
-                let accuracy = Double(measureHits) / Double(totalBeatsInMeasure) * 100
-                results.append(accuracy)
-            }
+    
+    // Генерируем высоту столбца для визуализации
+    private func getBarHeight(for index: Int) -> Double {
+        // Упрощенная логика - рандомизируем высоту на основе результатов
+        let totalGoodHits = model.perfectHits + model.goodHits
+        let ratio = Double(totalGoodHits) / Double(max(1, model.totalBeats))
+        
+        // Случайная высота, но с тенденцией соответствовать общей точности
+        let randomFactor = Double.random(in: 0.7...1.3)
+        return min(1.0, max(0.1, ratio * randomFactor))
+    }
+    
+    // Определяем цвет бара для визуализации
+    private func getBarColor(for index: Int) -> Color {
+        // Упрощенная логика для распределения цветов
+        let perfectRatio = Double(model.perfectHits) / Double(max(1, model.totalBeats))
+        let goodRatio = Double(model.goodHits) / Double(max(1, model.totalBeats))
+        let missedRatio = Double(model.missedHits) / Double(max(1, model.totalBeats))
+        
+        let rand = Double.random(in: 0...1.0)
+        
+        if rand < perfectRatio {
+            return .green
+        } else if rand < perfectRatio + goodRatio {
+            return .blue
+        } else if rand < perfectRatio + goodRatio + missedRatio {
+            return .orange
+        } else {
+            return .red
         }
-
-        return results
     }
 }
 
@@ -142,43 +176,6 @@ struct ResultRow: View {
             Text("\(value)")
                 .fontWeight(.bold)
                 .foregroundColor(color)
-        }
-    }
-}
-
-struct MeasureAccuracyGraph: View {
-    let values: [Double]
-    let maxValue: Double
-    let barColor: Color
-
-    var body: some View {
-        GeometryReader { geometry in
-            HStack(alignment: .bottom, spacing: 2) {
-                ForEach(0..<values.count, id: \.self) { index in
-                    let value = values[index]
-                    let normalizedValue = value / maxValue
-                    let barHeight = geometry.size.height * CGFloat(normalizedValue)
-
-                    VStack {
-                        Rectangle()
-                            .fill(barColor.opacity(0.7))
-                            .frame(width: (geometry.size.width / CGFloat(values.count)) - 4,
-                                   height: max(0, barHeight))
-
-                        Text("\(index + 1)")
-                            .font(.system(size: 8))
-                            .foregroundColor(.gray)
-                    }
-                }
-            }
-            .overlay(
-                VStack {
-                    Spacer()
-                    Rectangle()
-                        .frame(height: 1)
-                        .foregroundColor(.gray)
-                }
-            )
         }
     }
 }

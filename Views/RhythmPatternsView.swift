@@ -44,6 +44,9 @@ struct PatternView: View {
     let isActive: Bool
     let onTap: () -> Void
     
+    @State private var pulseOpacity: Double = 0.1
+    @State private var pulseCycle = 0
+    
     var body: some View {
         VStack {
             HStack(spacing: 2) {
@@ -62,15 +65,56 @@ struct PatternView: View {
         .frame(minWidth: 60)
         .padding(8)
         .background(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(isActive ? Color.blue : Color.gray, lineWidth: isActive ? 2 : 1)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(isActive ? Color.blue.opacity(0.1) : Color.white)
-                )
+            ZStack {
+                // Background fill
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(isActive ? Color.blue.opacity(pulseOpacity) : Color.white)
+                
+                // Border
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(isActive ? Color.blue : Color.gray, lineWidth: isActive ? 2 : 1)
+            }
         )
         .onTapGesture {
             onTap()
+        }
+        .onChange(of: isActive) { _, nowActive in
+            if nowActive {
+                // Reset animation cycle when pattern becomes active
+                pulseCycle = 0
+                startPulseAnimation()
+            } else {
+                pulseOpacity = 0.1
+            }
+        }
+    }
+    
+    private func startPulseAnimation() {
+        guard isActive else { return }
+        
+        // If pattern has multiple notes, show more pulses
+        let noteCount = max(1, pattern.noteTimings.count)
+        
+        // Only animate for the number of notes in the pattern
+        if pulseCycle < noteCount {
+            withAnimation(.easeInOut(duration: 0.3)) {
+                pulseOpacity = 0.6
+            }
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    pulseOpacity = 0.1
+                }
+                
+                pulseCycle += 1
+                
+                // Continue pulsing if more notes in the pattern
+                if pulseCycle < noteCount && isActive {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                        startPulseAnimation()
+                    }
+                }
+            }
         }
     }
 }

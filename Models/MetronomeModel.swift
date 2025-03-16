@@ -383,13 +383,10 @@ public class MetronomeModel: ObservableObject {
         // Если в паттерне нет нот, то пауза
         if pattern.noteTimings.isEmpty {
             shouldHaveNote = false
-        }
-
-        // Проверяем для паттерна две восьмые, не попадаем ли мы во вторую восьмую
-        if pattern == .eighthPair && positionInBeat >= 0.4 && positionInBeat <= 0.6 {
-            // Это вторая восьмая нота в паре
-            shouldHaveNote = true
-            closestDistance = abs(positionInBeat - 0.5) // Расстояние до второй восьмой (0.5)
+            // Если это пауза, а пользователь нажал - это удар мимо
+            extraHits += 1
+            print("Нота мимо: удар во время паузы в паттерне \(pattern.rawValue)")
+            return
         }
 
         // Обновляем последнее время и бит
