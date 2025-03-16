@@ -47,9 +47,10 @@ struct PatternView: View {
     var body: some View {
         VStack {
             HStack(spacing: 2) {
-                ForEach(pattern.symbols, id: \.self) { symbol in
+                ForEach(Array(pattern.symbols.enumerated()), id: \.offset) { index, symbol in
                     Text(symbol)
                         .font(.system(size: 24))
+                        .id("\(pattern.rawValue)-\(index)-\(symbol)")
                 }
             }
             

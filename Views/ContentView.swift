@@ -24,6 +24,27 @@ struct ContentView: View {
                 .padding()
                 .background(Color(UIColor.systemGray6))
                 .cornerRadius(15)
+                
+                // Ритмические паттерны на главном экране
+                VStack(alignment: .leading) {
+                    Text("Ритмические паттерны:")
+                        .font(.headline)
+                        .padding(.bottom, 2)
+                    
+                    RhythmPatternsView(model: metronomeModel, onPatternTapped: { index in
+                        // Инициализируем паттерны, чтобы они отображались корректно
+                        if metronomeModel.currentPatterns.isEmpty {
+                            metronomeModel.initializeRandomPatterns()
+                        }
+                    })
+                }
+                .padding()
+                .background(Color(UIColor.systemGray6))
+                .cornerRadius(15)
+                .onAppear {
+                    // Инициализируем паттерны при загрузке экрана
+                    metronomeModel.initializeRandomPatterns()
+                }
 
                 Spacer()
 

@@ -122,7 +122,7 @@ class AudioEngine: NSObject, ObservableObject {
 
         // Получаем уровень звука (в децибелах)
         let avgPower = recorder.averagePower(forChannel: 0)
-        let peakPower = recorder.peakPower(forChannel: 0)
+        _ = recorder.peakPower(forChannel: 0)
 
         // Проверяем, не близко ли это к клику метронома
         if let lastClickTime = lastMetronomeClickTime,

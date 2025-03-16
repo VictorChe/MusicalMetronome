@@ -1,0 +1,1 @@
+_ = model.perfectHits + model.goodHits + model.missedHits

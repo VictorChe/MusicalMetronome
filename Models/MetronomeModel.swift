@@ -1,4 +1,3 @@
-
 import Foundation
 import AVFoundation
 
@@ -332,15 +331,15 @@ public class MetronomeModel: ObservableObject {
         // Определяем текущий паттерн
         let currentPatternIndex = (Int(nearestBeatNumber) - 1) % 4
         let currentPattern = currentPatterns[max(0, min(currentPatternIndex, currentPatterns.count - 1))]
-        
+
         print("Точная позиция: \(exactBeatPosition), Ближайший бит: \(nearestBeatNumber), Текущий паттерн: \(currentPattern.rawValue), Отклонение в долях: \(beatDeviation), Отклонение в секундах: \(timeDeviation)")
 
         // Проверяем минимальный интервал между нажатиями
         // Для восьмых нот уменьшаем минимальный интервал
         let isEighthPattern = currentPattern == .eighthPair || currentPattern == .eighthTriplet
-        
+
         let adjustedMinimumTime = isEighthPattern ? minimumTimeBetweenHits * 0.5 : minimumTimeBetweenHits
-        
+
         if currentTime - lastHitTime < adjustedMinimumTime {
             extraHits += 1
             print("Слишком частое нажатие (интервал: \(currentTime - lastHitTime), минимум: \(adjustedMinimumTime))")
@@ -385,7 +384,7 @@ public class MetronomeModel: ObservableObject {
         if pattern.noteTimings.isEmpty {
             shouldHaveNote = false
         }
-        
+
         // Проверяем для паттерна две восьмые, не попадаем ли мы во вторую восьмую
         if pattern == .eighthPair && positionInBeat >= 0.4 && positionInBeat <= 0.6 {
             // Это вторая восьмая нота в паре
@@ -491,11 +490,13 @@ public class MetronomeModel: ObservableObject {
         // Находим ближайший timing в паттерне
         var shouldHaveNote = false
         var closestDistance = 1.0
+        var closestTiming = 0.0
 
         for timing in pattern.noteTimings {
             let distance = abs(positionInBeat - timing)
             if distance < closestDistance {
                 closestDistance = distance
+                closestTiming = timing
                 shouldHaveNote = true
             }
         }

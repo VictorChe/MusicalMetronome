@@ -28,9 +28,9 @@ struct TrainingView: View {
             .onAppear {
                 showResults = false
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    // Инициализация случайных паттернов при начале тренировки
+                    model.initializeRandomPatterns()
                     if !model.isRunning && !model.isCountdown {
-                        // Инициализация случайных паттернов при начале тренировки
-                        model.initializeRandomPatterns()
                         model.startMetronome()
                     }
                     setupAudioEngine()
@@ -75,6 +75,50 @@ struct TrainingView: View {
                 .font(.headline)
                 .multilineTextAlignment(.center)
                 .padding()
+                
+            // Показываем ритмические паттерны
+            RhythmPatternsView(model: model, onPatternTapped: { index in })
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                
+            // Добавляем кнопку TAP во время обратного отсчета
+            if model.mode == .tap {
+                Button {
+                    // Нажатие во время обратного отсчета ничего не делает
+                } label: {
+                    Text("Тап")
+                        .font(.title)
+                        .foregroundColor(.white)
+                        .frame(width: 150, height: 150)
+                        .background(Color.blue.opacity(0.7))
+                        .clipShape(Circle())
+                        .shadow(radius: 5)
+                }
+                .padding(.vertical)
+            } else {
+                // Аудиоуровень для микрофона
+                VStack(spacing: 5) {
+                    Text("Уровень звука: 0%")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                        
+                    // Упрощенный вид аудиоуровня
+                    AudioLevelView(
+                        level: 0.0,
+                        isBeatDetected: false,
+                        showWaveform: true,
+                        beats: Array(1...4).map { Double($0) },
+                        currentBeatPosition: 0,
+                        userHits: []
+                    )
+                    .frame(height: 80)
+                    .background(Color.black.opacity(0.05))
+                    .cornerRadius(8)
+                }
+                .padding(.vertical)
+                .background(Color.black.opacity(0.05))
+                .cornerRadius(10)
+            }
         }
     }
 
@@ -103,7 +147,7 @@ struct TrainingView: View {
 
                 // Вызов обновления паттерна, если изменился текущий бит
                 // и мы должны обновить паттерн
-                .onChange(of: model.currentBeat) { newBeat in
+                .onChange(of: model.currentBeat) { oldBeat, newBeat in
                     // Обновляем случайный паттерн каждые 4 бита или если это первый бит
                     if newBeat > 0 && (newBeat % 4 == 0 || lastUpdatedPatternIndex == -1) {
                         let randomIndex = Int.random(in: 0..<model.currentPatterns.count)
@@ -245,7 +289,7 @@ struct TrainingView: View {
             Text("Загрузка результатов...")
                 .onAppear {
                     if !model.isRunning && !model.isCountdown && !showResults {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                             showResults = true
                         }
                     }
